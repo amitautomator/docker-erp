@@ -1,0 +1,7 @@
+node_modules
+.next
+.env
+docker-comose.yml
+Dockerfile
+.git
+.DS_Store
