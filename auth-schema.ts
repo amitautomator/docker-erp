@@ -108,61 +108,45 @@ export const organizationsTable = pgTable("organizations", {
   created_by: uuid().notNull(),
 });
 
-// export const usersTable = pgTable(
-//   "allUsers",
-//   {
-//     id: uuid().primaryKey().defaultRandom(),
-//     full_name: varchar({ length: 255 }).notNull(),
-//     email: varchar({ length: 255 }).notNull().unique(),
-//     profile_image: varchar({ length: 512 }),
-//     hashed_password: varchar({ length: 512 }).notNull(),
-//     email_verified: boolean().default(false).notNull().unique(),
-
-//     ...timestamps,
-//   },
-//   (table) => ({
-//     roleIdx: index("users_role_idx").on(table.role),
-//     activeIdx: index("users_active_idx").on(table.is_active),
-//     createdAtIdx: index("users_created_at_idx").on(table.created_at),
-//     activeRoleIdx: index("users_active_role_idx").on(
-//       table.is_active,
-//       table.role
-//     ),
-//   })
-// );
-
 export const user = pgTable(
   "user",
   {
+    // Better Auth required fields
     id: text("id").primaryKey(),
     name: text("name").notNull(),
     email: text("email").notNull().unique(),
     emailVerified: boolean("email_verified").default(false).notNull(),
     image: text("image"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
 
-    organization_id: uuid().references(() => organizationsTable.id),
-    phone: varchar({ length: 20 }),
-    google_id: varchar({ length: 255 }).unique(),
-    dob: date({ mode: "date" }),
-    doj: date({ mode: "date" }),
-    role: rolesEnum().default("owner").notNull(),
-    is_active: boolean().default(true).notNull(),
-    status: varchar({ length: 512 }),
-    transfer_date: date({ mode: "date" }),
-    transfer_reason: varchar({ length: 1024 }),
-    subscription_type: varchar({ length: 100 }),
-    subscription_started_at: timestamp(),
-    subscription_expires_at: timestamp(),
-    subscription_status: varchar({ length: 100 }),
-
-    ...timestamps,
+    // Your custom fields
+    organizationId: uuid("organization_id").references(
+      () => organizationsTable.id
+    ),
+    phone: varchar("phone", { length: 20 }),
+    googleId: varchar("google_id", { length: 255 }).unique(),
+    dob: date("dob", { mode: "date" }),
+    doj: date("doj", { mode: "date" }),
+    role: rolesEnum("role").default("owner").notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
+    status: varchar("status", { length: 512 }),
+    transferDate: date("transfer_date", { mode: "date" }),
+    transferReason: varchar("transfer_reason", { length: 1024 }),
+    subscriptionType: varchar("subscription_type", { length: 100 }),
+    subscriptionStartedAt: timestamp("subscription_started_at"),
+    subscriptionExpiresAt: timestamp("subscription_expires_at"),
+    subscriptionStatus: varchar("subscription_status", { length: 100 }),
   },
   (table) => ({
     roleIdx: index("users_role_idx").on(table.role),
-    activeIdx: index("users_active_idx").on(table.is_active),
-    createdAtIdx: index("users_created_at_idx").on(table.created_at),
+    activeIdx: index("users_active_idx").on(table.isActive),
+    createdAtIdx: index("users_created_at_idx").on(table.createdAt),
     activeRoleIdx: index("users_active_role_idx").on(
-      table.is_active,
+      table.isActive,
       table.role
     ),
   })

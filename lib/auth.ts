@@ -8,7 +8,6 @@ import { openAPI, multiSession } from "better-auth/plugins";
 
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET!,
-
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {
@@ -224,5 +223,37 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: true,
   },
+
   plugins: [nextCookies(), openAPI(), multiSession()],
+  user: {
+    additionalFields: {
+      organizationId: { type: "string", required: false, input: false },
+      phone: { type: "string", required: false, input: true },
+      googleId: { type: "string", required: false, input: false },
+      dob: { type: "string", required: false, input: true },
+      doj: { type: "string", required: false, input: true },
+
+      isActive: {
+        type: "boolean",
+        required: false,
+        defaultValue: true,
+        input: false,
+      },
+
+      status: { type: "string", required: false, input: true },
+      transferDate: { type: "string", required: false, input: true },
+      transferReason: { type: "string", required: false, input: true },
+      subscriptionType: { type: "string", required: false, input: false },
+      subscriptionStartedAt: { type: "string", required: false, input: false },
+      subscriptionExpiresAt: { type: "string", required: false, input: false },
+      subscriptionStatus: { type: "string", required: false, input: false },
+
+      role: {
+        type: ["user", "manager", "admin", "owner"],
+        required: false,
+        defaultValue: "user",
+        input: false, // don't allow user to set role
+      },
+    },
+  },
 });
