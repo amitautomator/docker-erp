@@ -31,7 +31,8 @@ export const auth = betterAuth({
       maxAge: 5 * 60,
     },
     expiresIn: 60 * 60 * 24 * 7, // 7 days
-    updateAge: 60 * 60 * 24, // 1 day (every 1 day the session expiration is updated)
+    updateAge: 60 * 60 * 24,
+    // 1 day (every 1 day the session expiration is updated)
   },
 
   rateLimit: {
@@ -249,9 +250,9 @@ export const auth = betterAuth({
       subscriptionStatus: { type: "string", required: false, input: false },
 
       role: {
-        type: ["user", "manager", "admin", "owner"],
+        type: "string",
         required: false,
-        defaultValue: "user",
+        defaultValue: "owner",
         input: false, // don't allow user to set role
       },
     },

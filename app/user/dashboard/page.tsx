@@ -1,11 +1,8 @@
-import { auth } from "@/lib/auth"; // path to your Better Auth server instance
-import { headers } from "next/headers";
+import getServerSession from "@/lib/getServerSession";
 
 export default async function DashboardPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(), // you need to pass the headers object.
-  });
 
+  const session = await getServerSession();
   console.log("User session data:", session);
 
   return (

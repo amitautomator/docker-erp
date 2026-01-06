@@ -1,5 +1,5 @@
 {
-  "id": "af697a20-f853-44b1-9d9b-bf5afcc83143",
+  "id": "4cad43e6-0329-480c-a5c5-3a27980b4561",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -28,7 +28,7 @@
         },
         "user_id": {
           "name": "user_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -201,53 +201,7 @@
           "notNull": true
         }
       },
-      "indexes": {
-        "organizations_orgName_idx": {
-          "name": "organizations_orgName_idx",
-          "columns": [
-            {
-              "expression": "orgName",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "organizations_active_idx": {
-          "name": "organizations_active_idx",
-          "columns": [
-            {
-              "expression": "is_active",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "organizations_created_by_idx": {
-          "name": "organizations_created_by_idx",
-          "columns": [
-            {
-              "expression": "created_by",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -304,7 +258,7 @@
         },
         "user_id": {
           "name": "user_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         }
@@ -361,10 +315,9 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "name": {
           "name": "name",
@@ -404,52 +357,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "user_email_unique": {
-          "name": "user_email_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.allUsers": {
-      "name": "allUsers",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
         },
         "organization_id": {
           "name": "organization_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
-        },
-        "full_name": {
-          "name": "full_name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "email": {
-          "name": "email",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
         },
         "phone": {
           "name": "phone",
@@ -462,25 +375,6 @@
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": false
-        },
-        "profile_image": {
-          "name": "profile_image",
-          "type": "varchar(512)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "hashed_password": {
-          "name": "hashed_password",
-          "type": "varchar(512)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "email_verified": {
-          "name": "email_verified",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         },
         "dob": {
           "name": "dob",
@@ -550,20 +444,6 @@
           "type": "varchar(100)",
           "primaryKey": false,
           "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
         }
       },
       "indexes": {
@@ -635,9 +515,9 @@
         }
       },
       "foreignKeys": {
-        "allUsers_organization_id_organizations_id_fk": {
-          "name": "allUsers_organization_id_organizations_id_fk",
-          "tableFrom": "allUsers",
+        "user_organization_id_organizations_id_fk": {
+          "name": "user_organization_id_organizations_id_fk",
+          "tableFrom": "user",
           "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
@@ -651,25 +531,18 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "allUsers_email_unique": {
-          "name": "allUsers_email_unique",
+        "user_email_unique": {
+          "name": "user_email_unique",
           "nullsNotDistinct": false,
           "columns": [
             "email"
           ]
         },
-        "allUsers_google_id_unique": {
-          "name": "allUsers_google_id_unique",
+        "user_google_id_unique": {
+          "name": "user_google_id_unique",
           "nullsNotDistinct": false,
           "columns": [
             "google_id"
-          ]
-        },
-        "allUsers_email_verified_unique": {
-          "name": "allUsers_email_verified_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "email_verified"
           ]
         }
       },
