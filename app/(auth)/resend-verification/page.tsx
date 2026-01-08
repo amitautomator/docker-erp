@@ -107,7 +107,7 @@ export default function ResendVerificationPage() {
         <div className="mt-6 text-center text-sm">
           <span className="text-muted-foreground">Remember your password?</span>{" "}
           <Link
-            href="/auth/login"
+            href="/login"
             className="font-semibold text-primary hover:underline hover:text-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm transition-colors duration-200"
           >
             Sign in

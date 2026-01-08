@@ -8,6 +8,13 @@
       "when": 1767633682248,
       "tag": "0000_lyrical_raza",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1767651738441,
+      "tag": "0001_next_supernaut",
+      "breakpoints": true
     }
   ]
 }

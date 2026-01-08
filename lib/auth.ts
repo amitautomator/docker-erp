@@ -4,17 +4,26 @@ import { nextCookies } from "better-auth/next-js";
 import { db } from "@/drizzle/src/db/db";
 import * as schema from "@/auth-schema";
 import { sendEmail } from "./email"; // your email sending function
-import { openAPI, multiSession } from "better-auth/plugins";
+import {
+  openAPI,
+  multiSession,
+  organization,
+  admin,
+} from "better-auth/plugins";
 
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET!,
+  basePath: "/api/auth",
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {
-      user: schema.user,
+      users: schema.users,
       session: schema.session,
       account: schema.account,
       verificationToken: schema.verification,
+      organization: schema.organization,
+      member: schema.member,
+      invitation: schema.invitation,
     },
   }),
 
@@ -225,22 +234,38 @@ export const auth = betterAuth({
     requireEmailVerification: true,
   },
 
-  plugins: [nextCookies(), openAPI(), multiSession()],
+  plugins: [
+    nextCookies(),
+    openAPI(),
+    multiSession(),
+    organization({
+      // ✅ REMOVE additionalFields - they're now in the schema
+      async sendInvitationEmail(data: any) {
+        await sendEmail({
+          to: data.email,
+          subject: `You've been invited to join ${data.organization.name}`,
+          html: `
+            <p>You've been invited to join ${data.organization.name} as a ${data.role}.</p>
+            <a href="${data.invitationLink}">Accept Invitation</a>
+          `,
+        });
+      },
+    }),
+    admin(),
+  ],
   user: {
+    modelName: "users",
     additionalFields: {
-      organizationId: { type: "string", required: false, input: false },
       phone: { type: "string", required: false, input: true },
       googleId: { type: "string", required: false, input: false },
       dob: { type: "string", required: false, input: true },
       doj: { type: "string", required: false, input: true },
-
       isActive: {
         type: "boolean",
         required: false,
         defaultValue: true,
         input: false,
       },
-
       status: { type: "string", required: false, input: true },
       transferDate: { type: "string", required: false, input: true },
       transferReason: { type: "string", required: false, input: true },
@@ -248,12 +273,29 @@ export const auth = betterAuth({
       subscriptionStartedAt: { type: "string", required: false, input: false },
       subscriptionExpiresAt: { type: "string", required: false, input: false },
       subscriptionStatus: { type: "string", required: false, input: false },
-
-      role: {
+    },
+  },
+  organization: {
+    additionalFields: {
+      businessType: {
         type: "string",
         required: false,
-        defaultValue: "owner",
-        input: false, // don't allow user to set role
+        input: true,
+        fieldName: "business_type",
+      },
+      city: { type: "string", required: false, input: true },
+      description: { type: "string", required: false, input: true },
+      teamSize: {
+        type: "number",
+        required: false,
+        input: true,
+        fieldName: "team_size",
+      },
+      isActive: {
+        type: "boolean",
+        required: false,
+        input: false,
+        fieldName: "is_active",
       },
     },
   },

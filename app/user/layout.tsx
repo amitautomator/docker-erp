@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import { getServerSession } from "@/lib/getServerSession";
+import React, { useEffect, useState } from "react";
 
 import {
   Sidebar,
@@ -24,6 +25,35 @@ import {
   IconUserBolt,
   IconUsersGroup,
 } from "@tabler/icons-react";
+
+interface SessionType {
+  session?: {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    userId: string;
+    expiresAt: Date;
+    token: string;
+    ipAddress?: string | null | undefined | undefined;
+    userAgent?: string | null | undefined | undefined;
+  };
+  user?: {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    email: string;
+    emailVerified: boolean;
+    name: string;
+    image?: string | null | undefined | undefined;
+    role: string | null | undefined;
+    isActive: boolean | null | undefined;
+    organizationId?: string | null | undefined;
+    phone?: string | null | undefined;
+    googleId?: string | null | undefined;
+    dob?: string | null | undefined;
+    doj?: string | null | undefined;
+  };
+}
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const links = [
@@ -84,8 +114,29 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       ),
     },
   ];
+  const [session, setSession] = useState<SessionType | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await getServerSession();
+        console.log("Fetched session data:", data);
+        setSession(data);
+      } catch (error) {
+        console.error("Failed to fetch session:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const [open, setOpen] = useState(false);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <>
@@ -110,11 +161,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 {/* You can add footer content here if needed */}
                 <SidebarLink
                   link={{
-                    label: "Manu Arora",
+                    label: session?.user?.name || "User",
                     href: "#",
                     icon: (
                       <Image
-                        src={"/Logo.png"}
+                        src={session?.user?.image || "/Logo.png"}
                         className="h-7 w-7 shrink-0 rounded-full object-cover bg-neutral-600"
                         width={50}
                         height={50}

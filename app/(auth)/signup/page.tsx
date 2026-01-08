@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { authClient } from "@/better-auth/auth-client";
+import { authClient } from "@/lib/auth-client";
 import { useForm, SubmitHandler, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -25,6 +25,7 @@ import {
   X,
   ChevronDown,
 } from "lucide-react";
+import Link from "next/link";
 
 const PasswordRequirement = ({ met, text }: { met: boolean; text: string }) => (
   <div
@@ -110,7 +111,7 @@ export default function SignupPage() {
         }
       );
       if (error) {
-        router.push("/auth/signup");
+        router.push("/signup");
         toast.error(error.message || "Signup failed. Please try again.");
         return;
       }
@@ -411,12 +412,12 @@ export default function SignupPage() {
           <span className="text-muted-foreground">
             Already have an account?
           </span>{" "}
-          <a
-            href="/auth/login"
+          <Link
+            href="/login"
             className="font-semibold text-primary hover:underline hover:text-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm transition-colors duration-200"
           >
             Login
-          </a>
+          </Link>
         </div>
       </div>
     </div>

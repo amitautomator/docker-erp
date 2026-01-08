@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, AlertCircle, CheckCircle, ArrowLeft } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 interface FormData {
   email: string;
@@ -173,13 +174,13 @@ export default function ForgotPasswordPage() {
 
             {/* Back to Login */}
             <div className="mt-6 text-center">
-              <a
-                href="/auth/login"
+              <Link
+                href="/login"
                 className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline hover:text-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm transition-colors duration-200"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back to login
-              </a>
+              </Link>
             </div>
           </>
         ) : (
@@ -214,12 +215,12 @@ export default function ForgotPasswordPage() {
                 >
                   Try another email
                 </Button>
-                <a href="/auth/login" className="w-full">
+                <Link href="/login" className="w-full">
                   <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-200 active:scale-[0.98] shadow-md hover:shadow-lg">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to login
                   </Button>
-                </a>
+                </Link>
               </div>
             </div>
           </>

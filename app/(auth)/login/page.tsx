@@ -267,12 +267,12 @@ export default function LoginPage() {
           )}
           <div className="flex items-center justify-between pt-1">
             <Link
-              href="/auth/forgot-password"
+              href="/forgot-password"
               className="text-sm font-medium text-primary hover:underline hover:text-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm transition-colors duration-200 "
             >
               Forgot password?
             </Link>
-            <Link href="/auth/resend-verification">
+            <Link href="/resend-verification">
               <span className="text-sm font-medium text-primary hover:underline hover:text-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm transition-colors duration-200 ">
                 Resend verification email
               </span>
@@ -316,7 +316,7 @@ export default function LoginPage() {
             Don&apos;t have an account?
           </span>{" "}
           <Link
-            href="/auth/signup"
+            href="/signup"
             className="font-semibold text-primary hover:underline hover:text-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm transition-colors duration-200"
           >
             Sign up

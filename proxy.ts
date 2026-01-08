@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { getServerSession } from "@/lib/getServerSession";
 
 export async function proxy(request: NextRequest) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getServerSession();
 
+  console.log("session proxy", session);
   const { pathname } = request.nextUrl;
 
-  // Redirect authenticated users away from auth pages
   if (
     session &&
     (pathname.startsWith("/login") || pathname.startsWith("/signup"))
@@ -31,5 +28,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/user", "/login", "/signup"],
+  matcher: ["/user/:path*", "/login", "/signup"],
 };
