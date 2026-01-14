@@ -1,7 +1,6 @@
 "use client";
 
-import { getServerSession } from "@/lib/getServerSession";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
 import {
   Sidebar,
@@ -14,7 +13,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
-
 import {
   IconArrowLeft,
   IconBrandTabler,
@@ -25,6 +23,9 @@ import {
   IconUserBolt,
   IconUsersGroup,
 } from "@tabler/icons-react";
+import { authClient } from "@/lib/auth-client";
+
+import logOut from "@/lib/logOut";
 
 interface SessionType {
   session?: {
@@ -36,6 +37,8 @@ interface SessionType {
     token: string;
     ipAddress?: string | null | undefined | undefined;
     userAgent?: string | null | undefined | undefined;
+    activeOrganizationId?: string | null | undefined;
+    impersonatedBy?: string | null | undefined;
   };
   user?: {
     id: string;
@@ -45,11 +48,10 @@ interface SessionType {
     emailVerified: boolean;
     name: string;
     image?: string | null | undefined | undefined;
-    role: string | null | undefined;
-    isActive: boolean | null | undefined;
+    role?: string | null | undefined;
+    isActive?: boolean | null | undefined;
     organizationId?: string | null | undefined;
     phone?: string | null | undefined;
-    googleId?: string | null | undefined;
     dob?: string | null | undefined;
     doj?: string | null | undefined;
   };
@@ -114,28 +116,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       ),
     },
   ];
-  const [session, setSession] = useState<SessionType | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const data = await getServerSession();
-        console.log("Fetched session data:", data);
-        setSession(data);
-      } catch (error) {
-        console.error("Failed to fetch session:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
 
   const [open, setOpen] = useState(false);
 
-  if (loading) {
-    return <div>Loading...</div>;
+  const {
+    data: session, // Renamed from userSession for clarity
+    isPending,
+    error,
+  } = authClient.useSession();
+
+  if (isPending) {
+    return <div>Loading session...</div>;
   }
 
   return (
@@ -152,13 +143,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
                 {open ? <Logo /> : <LogoIcon />}
                 <div className="mt-8 flex flex-col gap-2">
-                  {links.map((link, idx) => (
-                    <SidebarLink key={idx} link={link} />
-                  ))}
+                  {links.map((link, idx) =>
+                    link.label !== "Logout" ? (
+                      <SidebarLink key={idx} link={link} />
+                    ) : (
+                      ""
+                      // <SidebarLink key={idx} link={link} />
+                    )
+                  )}
                 </div>
               </div>
               <div className="flex flex-col  ">
                 {/* You can add footer content here if needed */}
+
                 <SidebarLink
                   link={{
                     label: session?.user?.name || "User",
@@ -166,7 +163,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     icon: (
                       <Image
                         src={session?.user?.image || "/Logo.png"}
-                        className="h-7 w-7 shrink-0 rounded-full object-cover bg-neutral-600"
+                        className="h-7 w-7 shrink-0 rounded-full border border-white object-cover "
                         width={50}
                         height={50}
                         alt="Avatar"

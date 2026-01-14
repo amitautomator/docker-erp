@@ -10,7 +10,7 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql
+      - postgres-data:/var/lib/postgresql/data
     networks:
       - backend
     healthcheck:
@@ -19,23 +19,26 @@ services:
       timeout: 5s
       retries: 3
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: pgadmin_dev
+  pgbouncer:
+    image: pgbouncer/pgbouncer:latest
+    container_name: pgbouncer_dev
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@admin.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
-      PGADMIN_CONFIG_SERVER_MODE: "True"
-      PGADMIN_CONFIG_SESSION_DB_PATH: "'/var/lib/pgadmin/sessions'"
+      DATABASES_HOST: postgres
+      DATABASES_PORT: 5432
+      DATABASES_USER: ${POSTGRES_USER:-postgres}
+      DATABASES_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASES_DBNAME: ${POSTGRES_DB:-myapp}
+      PGBOUNCER_POOL_MODE: transaction
+      PGBOUNCER_MAX_CLIENT_CONN: 100
+      PGBOUNCER_DEFAULT_POOL_SIZE: 20
     ports:
-      - "127.0.0.1:5050:80"
-    volumes:
-      - pgadmin-data:/var/lib/pgadmin
+      - "127.0.0.1:6432:6432"
     networks:
       - backend
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
   redis:
     image: redis:latest
@@ -79,7 +82,5 @@ volumes:
     name: myapp-postgres-data
   redis-data:
     name: myapp-redis-data
-  pgadmin-data:
-    name: myapp-pgadmin-data
   redisinsight-data:
     name: myapp-redisinsight-data

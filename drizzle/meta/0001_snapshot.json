@@ -1,6 +1,6 @@
 {
-  "id": "7dc82543-a5c2-4cff-a831-1d1203364e69",
-  "prevId": "4cad43e6-0329-480c-a5c5-3a27980b4561",
+  "id": "e87c43ca-4ad0-4b94-ae15-dcc3b24d6f64",
+  "prevId": "d140e646-904c-42f2-8eb0-ad5c24b5bbab",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -388,6 +388,37 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "business_type": {
+          "name": "business_type",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "city": {
+          "name": "city",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "description": {
+          "name": "description",
+          "type": "varchar(1024)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "team_size": {
+          "name": "team_size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -566,12 +597,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "role": {
-          "name": "role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "banned": {
           "name": "banned",

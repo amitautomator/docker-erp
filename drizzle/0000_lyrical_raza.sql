@@ -51,7 +51,6 @@ CREATE TABLE "user" (
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"organization_id" uuid,
 	"phone" varchar(20),
-	"google_id" varchar(255),
 	"dob" date,
 	"doj" date,
 	"role" "roles" DEFAULT 'owner' NOT NULL,

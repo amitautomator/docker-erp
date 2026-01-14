@@ -25,7 +25,6 @@ export const users = pgTable("users", {
   banReason: text("ban_reason"),
   banExpires: timestamp("ban_expires"),
   phone: text("phone"),
-  googleId: text("google_id"),
   dob: text("dob"),
   doj: text("doj"),
   isActive: boolean("is_active").default(true),

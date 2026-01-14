@@ -38,7 +38,7 @@ export default function ResendVerificationPage() {
     try {
       await authClient.sendVerificationEmail({
         email,
-        callbackURL: "/dashboard",
+        callbackURL: "/user/dashboard",
       });
       toast.success(
         "Verification email sent successfully! Please check your inbox and spam folder."

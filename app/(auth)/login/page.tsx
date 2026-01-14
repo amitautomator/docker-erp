@@ -89,7 +89,7 @@ export default function LoginPage() {
           email: formData.email,
           password: formData.password,
           rememberMe: true,
-          callbackURL: `${window.location.origin}/dashboard`,
+          callbackURL: `${window.location.origin}/user/dashboard`,
         },
         {
           onRequest: (ctx) => {
@@ -98,9 +98,10 @@ export default function LoginPage() {
           },
           onSuccess: () => {
             console.log("Signup successful!");
-            router.push("/dashboard");
+            router.push("/user/dashboard");
           },
           onError: (ctx) => {
+            toast("An unexpected error occurred. Please try again.");
             console.log("Signup error callback:", ctx);
             if (ctx.error.status === 403) {
               toast.error(

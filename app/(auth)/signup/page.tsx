@@ -93,6 +93,7 @@ export default function SignupPage() {
           email: formData.email,
           password: formData.password,
           image: "",
+          // phone: `${cCode}${formData.phone}`,
         },
         {
           onRequest: (ctx) => {
@@ -101,7 +102,7 @@ export default function SignupPage() {
           },
           onSuccess: () => {
             console.log("Signup successful!");
-            router.push("/dashboard");
+            router.push("/user/dashboard");
           },
           onError: (ctx) => {
             toast.error(

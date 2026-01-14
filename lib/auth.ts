@@ -12,15 +12,18 @@ import {
 } from "better-auth/plugins";
 
 export const auth = betterAuth({
+  baseURL: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3200",
+
   secret: process.env.BETTER_AUTH_SECRET!,
   basePath: "/api/auth",
+
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {
       users: schema.users,
       session: schema.session,
       account: schema.account,
-      verificationToken: schema.verification,
+      verification: schema.verification,
       organization: schema.organization,
       member: schema.member,
       invitation: schema.invitation,
@@ -28,9 +31,10 @@ export const auth = betterAuth({
   }),
 
   socialProviders: {
-    github: {
-      clientId: process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+    google: {
+      prompt: "select_account",
+      clientId: process.env.GOOGLE_CLIENT_ID as string,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     },
   },
 
@@ -239,7 +243,6 @@ export const auth = betterAuth({
     openAPI(),
     multiSession(),
     organization({
-      // ✅ REMOVE additionalFields - they're now in the schema
       async sendInvitationEmail(data: any) {
         await sendEmail({
           to: data.email,
@@ -257,7 +260,6 @@ export const auth = betterAuth({
     modelName: "users",
     additionalFields: {
       phone: { type: "string", required: false, input: true },
-      googleId: { type: "string", required: false, input: false },
       dob: { type: "string", required: false, input: true },
       doj: { type: "string", required: false, input: true },
       isActive: {
