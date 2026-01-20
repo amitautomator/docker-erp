@@ -15,7 +15,12 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", {
+    mode: "string",
+    withTimezone: true, // Add this
+  })
+    .defaultNow()
+    .notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
@@ -43,7 +48,12 @@ export const session = pgTable(
     id: text("id").primaryKey(),
     expiresAt: timestamp("expires_at").notNull(),
     token: text("token").notNull().unique(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true, // Add this
+    })
+      .defaultNow()
+      .notNull(),
     updatedAt: timestamp("updated_at")
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
@@ -74,7 +84,12 @@ export const account = pgTable(
     refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
     scope: text("scope"),
     password: text("password"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true, // Add this
+    })
+      .defaultNow()
+      .notNull(),
     updatedAt: timestamp("updated_at")
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
@@ -89,7 +104,12 @@ export const verification = pgTable(
     identifier: text("identifier").notNull(),
     value: text("value").notNull(),
     expiresAt: timestamp("expires_at").notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true, // Add this
+    })
+      .defaultNow()
+      .notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
       .$onUpdate(() => /* @__PURE__ */ new Date())
@@ -100,16 +120,28 @@ export const verification = pgTable(
 
 export const organization = pgTable("organization", {
   id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  slug: text("slug").notNull().unique(),
   logo: text("logo"),
-  createdAt: timestamp("created_at").notNull(),
+  name: text("name").notNull(),
   metadata: text("metadata"),
-  business_type: varchar({ length: 255 }),
-  city: varchar({ length: 255 }),
+  slug: text("slug").notNull().unique(),
+
+  team_size: integer().notNull(),
+  business_type: varchar({ length: 255 }).notNull(),
+  business_address: varchar({ length: 255 }).notNull(),
+  business_website: varchar({ length: 255 }),
+
   is_active: boolean().default(true).notNull(),
-  description: varchar({ length: 1024 }),
-  team_size: integer(),
+  gst: varchar({ length: 255 }),
+  created_at: timestamp("created_at", {
+    mode: "string",
+    withTimezone: true,
+  })
+    .defaultNow()
+    .notNull(),
+  updated_at: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => /* @__PURE__ */ new Date())
+    .notNull(),
 });
 
 export const member = pgTable(
@@ -123,7 +155,10 @@ export const member = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     role: text("role").default("member").notNull(),
-    createdAt: timestamp("created_at").notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true, // Add this
+    }).notNull(),
   },
   (table) => [
     index("member_organizationId_idx").on(table.organizationId),
@@ -142,7 +177,12 @@ export const invitation = pgTable(
     role: text("role"),
     status: text("status").default("pending").notNull(),
     expiresAt: timestamp("expires_at").notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true, // Add this
+    })
+      .defaultNow()
+      .notNull(),
     inviterId: text("inviter_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),

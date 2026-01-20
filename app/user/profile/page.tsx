@@ -1,13 +1,46 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
-import { useForm, SubmitHandler } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
-import { User } from "lucide-react";
+import { useForm } from "react-hook-form";
+import {
+  User,
+  ShieldCheck,
+  Activity,
+  LogOut,
+  Mail,
+  Phone,
+  Briefcase,
+  Loader2,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+
 import {
   Dialog,
   DialogClose,
@@ -18,368 +51,359 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
 
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
-
 import { useGoogleSignIn } from "@/lib/google-auth";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-// Types
-type PasswordFormInputs = {
-  currentPassword: string;
-  newPassword: string;
-};
+// --- Sub-Components ---
 
-// Extracted Components
+const passwordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .regex(/[A-Z]/, "Must contain at least one uppercase letter")
+      .regex(/[a-z]/, "Must contain at least one lowercase letter")
+      .regex(/[0-9]/, "Must contain at least one number")
+      .regex(/[^A-Za-z0-9]/, "Must contain at least one symbol"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 
 const ProfileAvatar = ({ session }: { session: any }) => (
-  <div className="relative h-24 w-24 overflow-hidden rounded-full ring-4 ring-neutral-200 dark:ring-neutral-700">
-    {session?.user?.image ? (
-      <Image
-        src={session.user.image}
-        alt={`${session.user.name}'s profile picture`}
-        className="h-full w-full object-cover transition-transform hover:scale-110"
-        height={96}
-        width={96}
-      />
-    ) : (
-      <div className="flex h-full w-full items-center justify-center bg-neutral-100 dark:bg-neutral-800">
-        <User className="text-neutral-500" height={40} width={40} />
-      </div>
-    )}
+  <div className="relative group mx-auto md:mx-0">
+    <div className="absolute -inset-1 rounded-full bg-linear-to-tr from-primary to-blue-600 opacity-20 blur" />
+    <div className="relative flex h-24 w-24 sm:h-32 sm:w-32 items-center justify-center overflow-hidden rounded-full border-4 border-background bg-muted shadow-lg">
+      {session?.user?.image ? (
+        <Image
+          src={session.user.image}
+          alt={session.user.name}
+          className="h-full w-full object-cover"
+          height={128}
+          width={128}
+        />
+      ) : (
+        <User size={40} className="text-muted-foreground" />
+      )}
+    </div>
   </div>
 );
 
-const InfoCard = ({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) => (
-  <div className="group rounded-xl border border-neutral-200/50 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-neutral-700/50 dark:bg-neutral-800/50">
-    <h2 className="mb-5 text-xl font-semibold">{title}</h2>
-    {children}
+const DetailItem = ({ label, value, icon: Icon }: any) => (
+  <div className="flex items-center gap-4 rounded-xl border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+      <Icon className="h-5 w-5" />
+    </div>
+    <div className="min-w-0 flex-1">
+      <p className="truncate text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+        {label}
+      </p>
+      <p className="truncate text-sm font-semibold text-foreground">{value}</p>
+    </div>
   </div>
 );
 
-const InfoField = ({ label, value }: { label: string; value: string }) => (
-  <div>
-    <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-      {label}
-    </label>
-    <p className="mt-1 text-lg font-medium">{value}</p>
-  </div>
-);
-
-// Main Component
 export default function ProfilePage() {
   const router = useRouter();
-  const { handleGoogleSignIn, isLoading } = useGoogleSignIn();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const { data: session, isPending, error } = authClient.useSession();
+  const { handleGoogleSignIn, isLoading: isGoogleLoading } = useGoogleSignIn();
+  const { data: session, isPending } = authClient.useSession();
 
-  console.log("Session data:", session);
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<PasswordFormInputs>({
-    mode: "onChange",
+  const form = useForm<z.infer<typeof passwordSchema>>({
+    resolver: zodResolver(passwordSchema),
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    },
   });
 
-  async function logOut() {
-    console.log("logOut");
-    try {
-      await authClient.signOut();
-      router.push("/login");
-      return { success: true };
-    } catch (error) {
-      throw error;
+  async function onSubmit(values: z.infer<typeof passwordSchema>) {
+    console.log("Form Submitted:", values);
+
+    const { data, error } = await authClient.changePassword({
+      newPassword: values.newPassword, // required
+      currentPassword: values.currentPassword, // required
+      revokeOtherSessions: true,
+    });
+    if (error) {
+      toast.error("Error changing password", error);
+    } else if (data) {
+      toast.success("Password changed successfully");
+      setIsDialogOpen(false);
+      form.reset();
     }
   }
 
-  const onSubmit: SubmitHandler<PasswordFormInputs> = async (data) => {
+  const logOut = async () => {
     try {
-      console.log("Password change data:", data);
-
-      const { data: changePassword, error } = await authClient.changePassword({
-        newPassword: data.newPassword, // required
-        currentPassword: data.currentPassword, // required
-        revokeOtherSessions: true,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      if (changePassword) {
-        console.log("Password changed successfully:", changePassword);
-        toast.success("Password changed successfully");
-      }
-
-      reset();
-      setIsDialogOpen(false);
-    } catch (error) {
-      console.error("Error changing password:", error);
-      toast.error(
-        (error as Error).message ||
-          "Failed to change password. Please try again."
-      );
+      await authClient.signOut();
+      toast.success("Logged out successfully");
+      router.push("/login");
+    } catch (error: any) {
+      toast.error("Error signing out", error);
     }
-  };
-
-  const handleDialogClose = (open: boolean) => {
-    if (!open) {
-      reset();
-    }
-    setIsDialogOpen(open);
   };
 
   if (isPending) {
     return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="text-lg">Loading session...</div>
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  if (error || !session) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="text-lg text-red-600 dark:text-red-400">
-          Error loading session
-        </div>
-      </div>
-    );
-  }
+  if (!session) return null;
 
   return (
-    <div className="flex flex-1">
-      <div className="flex h-full w-full flex-1 flex-col gap-8 rounded-2xl border p-8 md:p-12">
-        {/* Profile Header */}
-        <div className="flex items-center gap-6">
-          <ProfileAvatar session={session} />
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              {session.user.name}
-            </h1>
-            <p className="text-lg text-neutral-600 dark:text-neutral-400">
-              {session.user.email}
-            </p>
+    <div className="min-h-screen bg-slate-50/50 dark:bg-neutral-950">
+      {/* Top Background Accent */}
+      <div className="h-32 w-screen bg-primary/5 md:h-48" />
+
+      <div className="mx-auto max-w-4xl px-4 pb-12">
+        {/* Profile Header Card */}
+        <div className="-mt-12 flex flex-col items-center gap-6 rounded-2xl border bg-card p-6 shadow-sm md:-mt-16 md:flex-row md:items-end md:justify-between md:p-8">
+          <div className="flex flex-col items-center gap-6 md:flex-row md:items-end">
+            <ProfileAvatar session={session} />
+            <div className="space-y-2 text-center md:pb-2 md:text-left">
+              <div className="flex flex-col items-center gap-2 md:flex-row md:gap-3">
+                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                  {session.user.name}
+                </h1>
+                <Badge variant="secondary" className="w-fit">
+                  {session.user.role || "Member"}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {session.user.email}
+              </p>
+            </div>
           </div>
+          <Button
+            onClick={logOut}
+            variant="outline"
+            className=" w-full md:w-auto dark:hover:bg-white "
+          >
+            <LogOut size={16} className="mr-2" /> Logout
+          </Button>
         </div>
 
-        {/* Profile Grid */}
-        <div className="grid gap-8 md:grid-cols-2">
-          {/* Personal Information */}
-          <InfoCard title="Personal Information">
-            <div className="space-y-4">
-              <InfoField
-                label="Name"
-                value={session.user.name || "Not provided"}
+        <Tabs defaultValue="general" className="mt-8">
+          {/* Responsive Tabs List - Scrolls horizontally on small screens */}
+          <div className="overflow-x-auto pb-2 scrollbar-hide">
+            <TabsList className="flex h-11 w-full justify-start rounded-none border-b bg-transparent p-0 md:justify-center">
+              <TabsTrigger
+                value="general"
+                className="flex-1 border-b-2 border-transparent px-4 py-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none sm:flex-none"
+              >
+                General
+              </TabsTrigger>
+              <TabsTrigger
+                value="security"
+                className="flex-1 border-b-2 border-transparent px-4 py-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none sm:flex-none"
+              >
+                Security
+              </TabsTrigger>
+              <TabsTrigger
+                value="activity"
+                className="flex-1 border-b-2 border-transparent px-4 py-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none sm:flex-none"
+              >
+                Activity
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="general" className="mt-6 space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <DetailItem
+                label="Full Name"
+                value={session.user.name}
+                icon={User}
               />
-              <InfoField
-                label="Email"
-                value={session.user.email || "Not provided"}
+              <DetailItem
+                label="Email Address"
+                value={session.user.email}
+                icon={Mail}
               />
-              <InfoField
+              <DetailItem
                 label="Phone Number"
-                value={session.user.phone || "Not provided"}
+                value={session.user.phone || "Not set"}
+                icon={Phone}
               />
-              <InfoField
-                label="Role"
-                value={session.user.role || "Not assigned"}
+              <DetailItem
+                label="User Role"
+                value={session.user.role || "Standard"}
+                icon={Briefcase}
               />
             </div>
-          </InfoCard>
 
-          {/* Account Settings */}
-          <InfoCard title="Account Settings">
-            <div className="space-y-3">
-              <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
-                <DialogTrigger asChild>
-                  <Button type="button" className="w-full rounded-lg">
-                    Change Password
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <form onSubmit={handleSubmit(onSubmit)}>
-                    <DialogHeader>
-                      <DialogTitle>Change Password</DialogTitle>
-                      <DialogDescription>
-                        Password must be at least 8 characters with 1 uppercase,
-                        1 lowercase, 1 number, and 1 symbol.
-                      </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="current-password">
-                          Current Password
-                        </Label>
-                        <Input
-                          type="password"
-                          id="current-password"
-                          placeholder="Enter current password"
-                          autoComplete="current-password"
-                          {...register("currentPassword", {
-                            required: "Current password is required",
-                            minLength: {
-                              value: 8,
-                              message: "Password must be at least 8 characters",
-                            },
-                          })}
-                          aria-invalid={
-                            errors.currentPassword ? "true" : "false"
-                          }
-                        />
-                        {errors.currentPassword && (
-                          <p
-                            className="text-sm text-red-600 dark:text-red-400"
-                            role="alert"
-                          >
-                            {errors.currentPassword.message}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="grid gap-2">
-                        <Label htmlFor="new-password">New Password</Label>
-                        <Input
-                          type="password"
-                          id="new-password"
-                          placeholder="Enter new password"
-                          autoComplete="new-password"
-                          {...register("newPassword", {
-                            required: "New password is required",
-                            minLength: {
-                              value: 8,
-                              message: "Password must be at least 8 characters",
-                            },
-                            validate: {
-                              hasUppercase: (value) =>
-                                /[A-Z]/.test(value) ||
-                                "Must contain at least 1 uppercase letter",
-                              hasLowercase: (value) =>
-                                /[a-z]/.test(value) ||
-                                "Must contain at least 1 lowercase letter",
-                              hasNumber: (value) =>
-                                /\d/.test(value) ||
-                                "Must contain at least 1 number",
-                              hasSymbol: (value) =>
-                                /[!@#$%^&*(),.?":{}|<>]/.test(value) ||
-                                "Must contain at least 1 symbol (!@#$%^&* etc.)",
-                            },
-                          })}
-                          aria-invalid={errors.newPassword ? "true" : "false"}
-                        />
-                        {errors.newPassword && (
-                          <p
-                            className="text-sm text-red-600 dark:text-red-400"
-                            role="alert"
-                          >
-                            {errors.newPassword.message}
-                          </p>
-                        )}
-
-                        {/* Password requirements hint */}
-                        <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                          <p className="font-medium mb-1">Requirements:</p>
-                          <ul className="space-y-0.5 list-disc list-inside">
-                            <li>At least 8 characters</li>
-                            <li>1 uppercase letter (A-Z)</li>
-                            <li>1 lowercase letter (a-z)</li>
-                            <li>1 number (0-9)</li>
-                            <li>1 symbol (!@#$%^&* etc.)</li>
-                          </ul>
-                        </div>
-                      </div>
+            <Card>
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-lg">Social Connections</CardTitle>
+                <CardDescription>
+                  Link your third-party accounts.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                <div className="flex flex-col items-center justify-between gap-4 rounded-xl border p-4 sm:flex-row">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 overflow-hidden rounded-full border bg-white p-2">
+                      <Image
+                        src="/google.svg"
+                        alt="Google"
+                        height={24}
+                        width={24}
+                      />
                     </div>
-
-                    <DialogFooter>
-                      <DialogClose asChild>
-                        <Button type="button" variant="outline">
-                          Cancel
-                        </Button>
-                      </DialogClose>
-                      <Button type="submit" disabled={isSubmitting}>
-                        {isSubmitting ? "Saving..." : "Save changes"}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-
-              <Button className="w-full rounded-lg" variant="outline">
-                Notification Settings
-              </Button>
-              <Button className="w-full rounded-lg" variant="outline">
-                Privacy Settings
-              </Button>
-            </div>
-            <div className="py-3 ">
-              <Button
-                className="dark:bg-black dark:text-white"
-                onClick={logOut}
-              >
-                Logout
-              </Button>
-            </div>
-          </InfoCard>
-
-          {/* Activity */}
-          <InfoCard title="Activity">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-lg bg-neutral-50 p-4 dark:bg-neutral-800/50">
-                <span className="font-medium">Last login</span>
-                <span className="text-neutral-600 dark:text-neutral-400">
-                  Today, 2:30 PM
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-lg bg-neutral-50 p-4 dark:bg-neutral-800/50">
-                <span className="font-medium">Account created</span>
-                <span className="text-neutral-600 dark:text-neutral-400">
-                  Jan 1, 2024
-                </span>
-              </div>
-            </div>
-          </InfoCard>
-
-          <InfoCard title="Connected Accounts">
-            <div className="space-y-3">
-              <Button
-                onClick={handleGoogleSignIn}
-                disabled={isLoading}
-                variant="outline"
-                className="flex w-full items-center justify-start gap-3 rounded-lg px-6 py-6 text-left transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800"
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full">
-                  <Image
-                    src="/google.svg"
-                    alt="Google logo"
-                    height={32}
-                    width={32}
-                  />
+                    <div className="text-center sm:text-left">
+                      <p className="text-sm font-bold">Google Account</p>
+                      <p className="text-xs text-muted-foreground">
+                        Quick login enabled
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant={
+                      session.user?.providers?.includes("google")
+                        ? "secondary"
+                        : "default"
+                    }
+                    onClick={handleGoogleSignIn}
+                    disabled={isGoogleLoading}
+                    className="w-full sm:w-auto"
+                  >
+                    {session.user?.providers?.includes("google")
+                      ? "Linked"
+                      : "Connect"}
+                  </Button>
                 </div>
-                <span className="font-medium">Google</span>
-                <span className="ml-auto rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
-                  {session.user?.providers?.includes("google")
-                    ? "Connected"
-                    : "Connect"}
-                </span>
-              </Button>
-            </div>
-          </InfoCard>
-          {/* Connected Accounts */}
-        </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="security" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Authentication</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                  <div>
+                    <p className="text-sm font-semibold">Update Password</p>
+                    <p className="text-xs text-muted-foreground">
+                      Last changed 3 months ago
+                    </p>
+                  </div>
+                  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className=" dark:hover:bg-white"
+                      >
+                        Change Password
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle>Change Password</DialogTitle>
+                        <DialogDescription>
+                          Password must be at least 8 characters and include
+                          uppercase, lowercase, numbers, and symbols.
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      <Form {...form}>
+                        <form
+                          onSubmit={form.handleSubmit(onSubmit)}
+                          className="space-y-4"
+                        >
+                          <FormField
+                            control={form.control}
+                            name="currentPassword"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Current Password</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="password"
+                                    {...field}
+                                    className="dark:border dark:border-neutral-400"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="newPassword"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>New Password</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="password"
+                                    className="dark:border dark:border-neutral-400"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="confirmPassword"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Confirm New Password</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="password"
+                                    {...field}
+                                    className="dark:border dark:border-neutral-400"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <DialogFooter className="pt-4">
+                            <Button type="submit" className="w-full">
+                              Update Password
+                            </Button>
+                          </DialogFooter>
+                        </form>
+                      </Form>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                <Separator />
+                <div className="flex flex-col justify-between gap-4 opacity-50 sm:flex-row sm:items-center">
+                  <div>
+                    <p className="text-sm font-semibold">Two-Factor Auth</p>
+                    <p className="text-xs text-muted-foreground">
+                      Secure your account with 2FA
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="w-fit">
+                    Coming Soon
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

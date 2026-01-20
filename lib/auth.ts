@@ -279,25 +279,42 @@ export const auth = betterAuth({
   },
   organization: {
     additionalFields: {
-      businessType: {
+      business_type: {
         type: "string",
         required: false,
         input: true,
         fieldName: "business_type",
       },
-      city: { type: "string", required: false, input: true },
-      description: { type: "string", required: false, input: true },
-      teamSize: {
+      team_size: {
         type: "number",
         required: false,
         input: true,
         fieldName: "team_size",
       },
+
       isActive: {
         type: "boolean",
         required: false,
         input: false,
         fieldName: "is_active",
+      },
+      gst: {
+        type: "string",
+        required: false,
+        input: true,
+        fieldName: "gst",
+      },
+      business_address: {
+        type: "string",
+        required: false,
+        input: true,
+        fieldName: "business_address",
+      },
+      business_website: {
+        type: "string",
+        required: false,
+        input: true,
+        fieldName: "business_website",
       },
     },
   },

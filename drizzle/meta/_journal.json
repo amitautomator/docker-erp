@@ -22,6 +22,34 @@
       "when": 1767997869509,
       "tag": "0002_closed_roulette",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1768425226410,
+      "tag": "0003_magical_norrin_radd",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1768425538499,
+      "tag": "0004_sad_sue_storm",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1768426835354,
+      "tag": "0005_left_lord_tyger",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1768427363340,
+      "tag": "0006_thankful_harpoon",
+      "breakpoints": true
     }
   ]
 }
