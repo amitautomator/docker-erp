@@ -7,5 +7,4 @@ const db = drizzle({
     ssl: true,
   },
 });
-// console.log("Database connected", process.env.DATABASE_URL!);
 export { db };

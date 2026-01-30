@@ -1,245 +1,238 @@
-import {
-  pgTable,
-  index,
-  foreignKey,
-  text,
-  timestamp,
-  unique,
-  varchar,
-  integer,
-  boolean,
-} from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
+import { relations } from "drizzle-orm";
+import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
 
+// Users Table
+export const users = pgTable("users", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: boolean("email_verified").default(false).notNull(),
+  image: text("image"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+  banned: boolean("banned").default(false),
+  banReason: text("ban_reason"),
+  banExpires: timestamp("ban_expires", { withTimezone: true }),
+  phone: text("phone"),
+  dob: text("dob"),
+  doj: text("doj"),
+  isActive: boolean("is_active").default(true),
+  status: text("status"),
+  transferDate: text("transfer_date"),
+  transferReason: text("transfer_reason"),
+  subscriptionType: text("subscription_type"),
+  subscriptionStartedAt: text("subscription_started_at"),
+  subscriptionExpiresAt: text("subscription_expires_at"),
+  subscriptionStatus: text("subscription_status"),
+});
+
+// Session Table
+export const session = pgTable(
+  "session",
+  {
+    id: text("id").primaryKey(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    token: text("token").notNull().unique(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    activeOrganizationId: text("active_organization_id"),
+    impersonatedBy: text("impersonated_by"),
+  },
+  (table) => ({
+    userIdIdx: index("session_userId_idx").on(table.userId),
+  }),
+);
+
+// Account Table
 export const account = pgTable(
   "account",
   {
-    id: text().primaryKey().notNull(),
+    id: text("id").primaryKey(),
     accountId: text("account_id").notNull(),
     providerId: text("provider_id").notNull(),
-    userId: text("user_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     accessToken: text("access_token"),
     refreshToken: text("refresh_token"),
     idToken: text("id_token"),
     accessTokenExpiresAt: timestamp("access_token_expires_at", {
-      mode: "string",
+      withTimezone: true,
     }),
     refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
-      mode: "string",
+      withTimezone: true,
     }),
-    scope: text(),
-    password: text(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true, // Add this
-    })
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
-    updatedAt: timestamp("updated_at", { mode: "string" }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
   },
-  (table) => [
-    index("account_userId_idx").using(
-      "btree",
-      table.userId.asc().nullsLast().op("text_ops")
-    ),
-    foreignKey({
-      columns: [table.userId],
-      foreignColumns: [users.id],
-      name: "account_user_id_users_id_fk",
-    }).onDelete("cascade"),
-  ]
+  (table) => ({
+    userIdIdx: index("account_userId_idx").on(table.userId),
+  }),
 );
 
+// Verification Table
 export const verification = pgTable(
   "verification",
   {
-    id: text().primaryKey().notNull(),
-    identifier: text().notNull(),
-    value: text().notNull(),
-    expiresAt: timestamp("expires_at", { mode: "string" }).notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true, // Add this
-    })
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
-    updatedAt: timestamp("updated_at", { mode: "string" })
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
+      .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [
-    index("verification_identifier_idx").using(
-      "btree",
-      table.identifier.asc().nullsLast().op("text_ops")
-    ),
-  ]
+  (table) => ({
+    identifierIdx: index("verification_identifier_idx").on(table.identifier),
+  }),
 );
 
-export const session = pgTable(
-  "session",
-  {
-    id: text().primaryKey().notNull(),
-    expiresAt: timestamp("expires_at", { mode: "string" }).notNull(),
-    token: text().notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-    })
-      .defaultNow()
-      .notNull(),
-    updatedAt: timestamp("updated_at", { mode: "string" }).notNull(),
-    ipAddress: text("ip_address"),
-    userAgent: text("user_agent"),
-    userId: text("user_id").notNull(),
-    activeOrganizationId: text("active_organization_id"),
-    impersonatedBy: text("impersonated_by"),
-  },
-  (table) => [
-    index("session_userId_idx").using(
-      "btree",
-      table.userId.asc().nullsLast().op("text_ops")
-    ),
-    foreignKey({
-      columns: [table.userId],
-      foreignColumns: [users.id],
-      name: "session_user_id_users_id_fk",
-    }).onDelete("cascade"),
-    unique("session_token_unique").on(table.token),
-  ]
-);
+// Organization Table
+export const organization = pgTable("organization", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  logo: text("logo"),
+  team_size: text("team_size"),
+  business_phone: text("business_phone"),
+  business_email: text("business_email"),
+  business_type: text("business_type"),
+  business_address: text("business_address"),
+  business_website: text("business_website"),
+  gst: text("gst"),
+  isActive: boolean("is_active").default(true).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  metadata: text("metadata"),
+});
 
-export const organization = pgTable(
-  "organization",
-  {
-    id: text().primaryKey().notNull(),
-    name: text().notNull(),
-    logo: text(),
-    slug: text().notNull(),
-    metadata: text(),
-    team_size: integer("team_size"),
-    business_type: varchar("business_type", { length: 255 }),
-
-    business_address: varchar("business_address", { length: 255 }),
-    business_website: varchar("business_website", { length: 255 }),
-
-    gst: varchar("gst", { length: 255 }),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true, // Add this
-    }).notNull(),
-    isActive: boolean("is_active").default(true).notNull(),
-    updated_at: timestamp("updated_at")
-      .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
-      .notNull(),
-  },
-  (table) => [unique("organization_slug_unique").on(table.slug)]
-);
-
-export const invitation = pgTable(
-  "invitation",
-  {
-    id: text().primaryKey().notNull(),
-    organizationId: text("organization_id").notNull(),
-    email: text().notNull(),
-    role: text(),
-    status: text().default("pending").notNull(),
-    expiresAt: timestamp("expires_at", { mode: "string" }).notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true, // Add this
-    })
-      .defaultNow()
-      .notNull(),
-    inviterId: text("inviter_id").notNull(),
-  },
-  (table) => [
-    index("invitation_email_idx").using(
-      "btree",
-      table.email.asc().nullsLast().op("text_ops")
-    ),
-    index("invitation_organizationId_idx").using(
-      "btree",
-      table.organizationId.asc().nullsLast().op("text_ops")
-    ),
-    foreignKey({
-      columns: [table.organizationId],
-      foreignColumns: [organization.id],
-      name: "invitation_organization_id_organization_id_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [table.inviterId],
-      foreignColumns: [users.id],
-      name: "invitation_inviter_id_users_id_fk",
-    }).onDelete("cascade"),
-  ]
-);
-
+// Member Table
 export const member = pgTable(
   "member",
   {
-    id: text().primaryKey().notNull(),
-    organizationId: text("organization_id").notNull(),
-    userId: text("user_id").notNull(),
-    role: text().default("member").notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true, // Add this
-    }).notNull(),
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role").default("member").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
-  (table) => [
-    index("member_organizationId_idx").using(
-      "btree",
-      table.organizationId.asc().nullsLast().op("text_ops")
+  (table) => ({
+    organizationIdIdx: index("member_organizationId_idx").on(
+      table.organizationId,
     ),
-    index("member_userId_idx").using(
-      "btree",
-      table.userId.asc().nullsLast().op("text_ops")
-    ),
-    foreignKey({
-      columns: [table.organizationId],
-      foreignColumns: [organization.id],
-      name: "member_organization_id_organization_id_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [table.userId],
-      foreignColumns: [users.id],
-      name: "member_user_id_users_id_fk",
-    }).onDelete("cascade"),
-  ]
+    userIdIdx: index("member_userId_idx").on(table.userId),
+  }),
 );
 
-export const users = pgTable(
-  "users",
+// Invitation Table
+export const invitation = pgTable(
+  "invitation",
   {
-    id: text().primaryKey().notNull(),
-    name: text().notNull(),
-    email: text().notNull(),
-    emailVerified: boolean("email_verified").default(false).notNull(),
-    image: text(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true, // Add this
-    })
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: text("role"),
+    status: text("status").default("pending").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
-    updatedAt: timestamp("updated_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
-    banned: boolean().default(false),
-    banReason: text("ban_reason"),
-    banExpires: timestamp("ban_expires", { mode: "string" }),
-    phone: text(),
-    dob: text(),
-    doj: text(),
-    isActive: boolean("is_active").default(true),
-    status: text(),
-    transferDate: text("transfer_date"),
-    transferReason: text("transfer_reason"),
-    subscriptionType: text("subscription_type"),
-    subscriptionStartedAt: text("subscription_started_at"),
-    subscriptionExpiresAt: text("subscription_expires_at"),
-    subscriptionStatus: text("subscription_status"),
+    inviterId: text("inviter_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
   },
-  (table) => [unique("users_email_unique").on(table.email)]
+  (table) => ({
+    organizationIdIdx: index("invitation_organizationId_idx").on(
+      table.organizationId,
+    ),
+    emailIdx: index("invitation_email_idx").on(table.email),
+  }),
 );
+
+// Relations
+export const usersRelations = relations(users, ({ many }) => ({
+  sessions: many(session),
+  accounts: many(account),
+  members: many(member),
+  invitations: many(invitation),
+}));
+
+export const sessionRelations = relations(session, ({ one }) => ({
+  user: one(users, {
+    fields: [session.userId],
+    references: [users.id],
+  }),
+}));
+
+export const accountRelations = relations(account, ({ one }) => ({
+  user: one(users, {
+    fields: [account.userId],
+    references: [users.id],
+  }),
+}));
+
+export const organizationRelations = relations(organization, ({ many }) => ({
+  members: many(member),
+  invitations: many(invitation),
+}));
+
+export const memberRelations = relations(member, ({ one }) => ({
+  organization: one(organization, {
+    fields: [member.organizationId],
+    references: [organization.id],
+  }),
+  user: one(users, {
+    fields: [member.userId],
+    references: [users.id],
+  }),
+}));
+
+export const invitationRelations = relations(invitation, ({ one }) => ({
+  organization: one(organization, {
+    fields: [invitation.organizationId],
+    references: [organization.id],
+  }),
+  inviter: one(users, {
+    fields: [invitation.inviterId],
+    references: [users.id],
+  }),
+}));

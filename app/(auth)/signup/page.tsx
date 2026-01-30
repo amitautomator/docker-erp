@@ -107,10 +107,10 @@ export default function SignupPage() {
           onError: (ctx) => {
             toast.error(ctx.error.message || "Signup failed.");
           },
-        }
+        },
       );
     } catch (error) {
-      toast.error("An unexpected error occurred.");
+      toast.error("An unexpected error occurred." + error);
     }
   };
 
@@ -173,7 +173,7 @@ export default function SignupPage() {
                     <FormItem>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" className="w-[80px] px-2">
+                          <Button variant="outline" className="w-20 px-2">
                             {selectedCountry.flag} +{field.value}
                             <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
                           </Button>

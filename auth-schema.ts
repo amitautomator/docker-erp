@@ -1,13 +1,5 @@
 import { relations } from "drizzle-orm";
-import {
-  pgTable,
-  varchar,
-  text,
-  timestamp,
-  boolean,
-  index,
-  integer,
-} from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -15,17 +7,11 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
-  createdAt: timestamp("created_at", {
-    mode: "string",
-    withTimezone: true, // Add this
-  })
-    .defaultNow()
-    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
-
   banned: boolean("banned").default(false),
   banReason: text("ban_reason"),
   banExpires: timestamp("ban_expires"),
@@ -48,12 +34,7 @@ export const session = pgTable(
     id: text("id").primaryKey(),
     expiresAt: timestamp("expires_at").notNull(),
     token: text("token").notNull().unique(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true, // Add this
-    })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
@@ -65,7 +46,7 @@ export const session = pgTable(
     activeOrganizationId: text("active_organization_id"),
     impersonatedBy: text("impersonated_by"),
   },
-  (table) => [index("session_userId_idx").on(table.userId)]
+  (table) => [index("session_userId_idx").on(table.userId)],
 );
 
 export const account = pgTable(
@@ -84,17 +65,12 @@ export const account = pgTable(
     refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
     scope: text("scope"),
     password: text("password"),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true, // Add this
-    })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
-  (table) => [index("account_userId_idx").on(table.userId)]
+  (table) => [index("account_userId_idx").on(table.userId)],
 );
 
 export const verification = pgTable(
@@ -104,44 +80,34 @@ export const verification = pgTable(
     identifier: text("identifier").notNull(),
     value: text("value").notNull(),
     expiresAt: timestamp("expires_at").notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true, // Add this
-    })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
-  (table) => [index("verification_identifier_idx").on(table.identifier)]
+  (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
 export const organization = pgTable("organization", {
   id: text("id").primaryKey(),
-  logo: text("logo"),
   name: text("name").notNull(),
-  metadata: text("metadata"),
   slug: text("slug").notNull().unique(),
-
-  team_size: integer().notNull(),
-  business_type: varchar({ length: 255 }).notNull(),
-  business_address: varchar({ length: 255 }).notNull(),
-  business_website: varchar({ length: 255 }),
-
-  is_active: boolean().default(true).notNull(),
-  gst: varchar({ length: 255 }),
-  created_at: timestamp("created_at", {
-    mode: "string",
-    withTimezone: true,
-  })
-    .defaultNow()
-    .notNull(),
+  logo: text("logo"),
+  team_size: text("team_size"),
+  business_phone: text("business_phone"),
+  business_email: text("business_email"),
+  business_type: text("business_type"),
+  business_address: text("business_address"),
+  business_website: text("business_website"),
+  gst: text("gst"),
+  isActive: boolean("is_active").default(true).notNull(),
   updated_at: timestamp("updated_at")
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  metadata: text("metadata"),
 });
 
 export const member = pgTable(
@@ -155,15 +121,12 @@ export const member = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     role: text("role").default("member").notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true, // Add this
-    }).notNull(),
+    createdAt: timestamp("created_at").notNull(),
   },
   (table) => [
     index("member_organizationId_idx").on(table.organizationId),
     index("member_userId_idx").on(table.userId),
-  ]
+  ],
 );
 
 export const invitation = pgTable(
@@ -177,12 +140,7 @@ export const invitation = pgTable(
     role: text("role"),
     status: text("status").default("pending").notNull(),
     expiresAt: timestamp("expires_at").notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true, // Add this
-    })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
     inviterId: text("inviter_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -190,7 +148,7 @@ export const invitation = pgTable(
   (table) => [
     index("invitation_organizationId_idx").on(table.organizationId),
     index("invitation_email_idx").on(table.email),
-  ]
+  ],
 );
 
 export const usersRelations = relations(users, ({ many }) => ({

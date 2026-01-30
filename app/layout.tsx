@@ -4,6 +4,8 @@ import "../app/globals.css";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "../components/theme-provider";
 
+import Providers from "../providers";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -41,7 +43,7 @@ export default function RootLayout({
           defaultTheme="system"
           storageKey="theme"
         >
-          {children}
+          <Providers>{children}</Providers>
         </ThemeProvider>
         <Toaster richColors position="top-right" />
       </body>
