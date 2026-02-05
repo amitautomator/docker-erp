@@ -41,7 +41,7 @@ export default function ResendVerificationPage() {
         callbackURL: "/user/dashboard",
       });
       toast.success(
-        "Verification email sent successfully! Please check your inbox and spam folder."
+        "Verification email sent successfully! Please check your inbox and spam folder.",
       );
       setEmail("");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

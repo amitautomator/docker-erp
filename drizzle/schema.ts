@@ -1,6 +1,18 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import {
+  unique,
+  pgTable,
+  text,
+  timestamp,
+  boolean,
+  index,
+  date,
+  pgEnum,
+  integer,
+  jsonb,
+} from "drizzle-orm/pg-core";
 
+export const roleEnum = pgEnum("role", ["member", "admin", "owner", "manager"]);
 // Users Table
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -19,15 +31,19 @@ export const users = pgTable("users", {
   banReason: text("ban_reason"),
   banExpires: timestamp("ban_expires", { withTimezone: true }),
   phone: text("phone"),
-  dob: text("dob"),
-  doj: text("doj"),
+  dob: date("dob"),
+  doj: date("doj"),
   isActive: boolean("is_active").default(true),
   status: text("status"),
-  transferDate: text("transfer_date"),
+  transferDate: timestamp("transfer_date", { withTimezone: true }),
   transferReason: text("transfer_reason"),
   subscriptionType: text("subscription_type"),
-  subscriptionStartedAt: text("subscription_started_at"),
-  subscriptionExpiresAt: text("subscription_expires_at"),
+  subscriptionStartedAt: timestamp("subscription_started_at", {
+    withTimezone: true,
+  }),
+  subscriptionExpiresAt: timestamp("subscription_expires_at", {
+    withTimezone: true,
+  }),
   subscriptionStatus: text("subscription_status"),
 });
 
@@ -54,7 +70,7 @@ export const session = pgTable(
     impersonatedBy: text("impersonated_by"),
   },
   (table) => ({
-    userIdIdx: index("session_userId_idx").on(table.userId),
+    tokenIdx: index("session_token_idx").on(table.token),
   }),
 );
 
@@ -89,6 +105,7 @@ export const account = pgTable(
   },
   (table) => ({
     userIdIdx: index("account_userId_idx").on(table.userId),
+    uniqueProviderAccount: unique().on(table.providerId, table.accountId),
   }),
 );
 
@@ -119,7 +136,7 @@ export const organization = pgTable("organization", {
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   logo: text("logo"),
-  team_size: text("team_size"),
+  team_size: integer("team_size"),
   business_phone: text("business_phone"),
   business_email: text("business_email"),
   business_type: text("business_type"),
@@ -134,7 +151,7 @@ export const organization = pgTable("organization", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
-  metadata: text("metadata"),
+  metadata: jsonb("metadata"),
 });
 
 // Member Table
@@ -148,7 +165,7 @@ export const member = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    role: text("role").default("member").notNull(),
+    role: roleEnum("role").default("member").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -158,6 +175,7 @@ export const member = pgTable(
       table.organizationId,
     ),
     userIdIdx: index("member_userId_idx").on(table.userId),
+    uniqueOrgUser: unique().on(table.organizationId, table.userId),
   }),
 );
 
@@ -170,7 +188,7 @@ export const invitation = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     email: text("email").notNull(),
-    role: text("role"),
+    role: roleEnum("role").default("member").notNull(),
     status: text("status").default("pending").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -185,6 +203,7 @@ export const invitation = pgTable(
       table.organizationId,
     ),
     emailIdx: index("invitation_email_idx").on(table.email),
+    statusIdx: index("invitation_status_idx").on(table.status),
   }),
 );
 

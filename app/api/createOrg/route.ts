@@ -5,10 +5,6 @@ import { eq } from "drizzle-orm";
 import { db } from "@/drizzle/src/db/db"; // Your Drizzle db instance
 import { organization } from "@/drizzle/schema";
 
-export async function GET() {
-  return NextResponse.json({ message: "GET method not implemented yet" });
-}
-
 export async function POST(req: Request) {
   const session = await getServerSession();
 

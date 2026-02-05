@@ -8,8 +8,11 @@ import {
   openAPI,
   multiSession,
   organization,
-  admin,
+  lastLoginMethod,
+  role,
 } from "better-auth/plugins";
+
+import { ac, admin, member, owner, manager } from "./permissions";
 
 export const auth = betterAuth({
   baseURL: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3200",
@@ -66,7 +69,7 @@ export const auth = betterAuth({
           html: `
             <!DOCTYPE html>
             <html>
-              <head>
+                                     <head>
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
               </head>
@@ -240,28 +243,107 @@ export const auth = betterAuth({
 
   plugins: [
     nextCookies(),
+    lastLoginMethod(),
     openAPI(),
     multiSession(),
     organization({
+      requireEmailVerificationOnInvitation: true,
       async sendInvitationEmail(data: any) {
+        const invitationLink = `${process.env.NEXT_PUBLIC_BASE_URL}/api/accept-invitation/${data.id}`;
         await sendEmail({
           to: data.email,
           subject: `You've been invited to join ${data.organization.name}`,
           html: `
-            <p>You've been invited to join ${data.organization.name} as a ${data.role}.</p>
-            <a href="${data.invitationLink}">Accept Invitation</a>
-          `,
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          </head>
+          <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5;">
+            <table role="presentation" style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td align="center" style="padding: 40px 20px;">
+                  <table role="presentation" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                      <td style="padding: 40px 40px 20px; text-align: center;">
+                        <h1 style="margin: 0; color: #18181b; font-size: 24px; font-weight: 600;">
+                          You've Been Invited! 🎉
+                        </h1>
+                      </td>
+                    </tr>
+                    
+                    <!-- Content -->
+                    <tr>
+                      <td style="padding: 0 40px 30px;">
+                        <p style="margin: 0 0 20px; color: #52525b; font-size: 16px; line-height: 1.5;">
+                          Hi there,
+                        </p>
+                        
+                        <!-- Button -->
+                        <table role="presentation" style="margin: 30px 0;">
+                          <tr>
+                            <td align="center">
+                              <a href="${invitationLink}" 
+                                 style="display: inline-block; padding: 14px 32px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: 500;">
+                                Accept Invitation
+                              </a>
+                            </td>
+                          </tr>
+                        </table>
+                        
+                        <p style="margin: 20px 0 0; color: #71717a; font-size: 14px; line-height: 1.5;">
+                          If the button doesn't work, copy and paste this link into your browser:
+                        </p>
+                        <p style="margin: 10px 0 0; word-break: break-all;">
+                          <a href="${invitationLink}" style="color: #2563eb; text-decoration: underline; font-size: 14px;">
+                            ${invitationLink}
+                          </a>
+                        </p>
+                      </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                      <td style="padding: 30px 40px; border-top: 1px solid #e4e4e7;">
+                        <p style="margin: 0; color: #71717a; font-size: 13px; line-height: 1.5;">
+                          This invitation will expire in <strong>7 days</strong>.
+                        </p>
+                        <p style="margin: 10px 0 0; color: #71717a; font-size: 13px; line-height: 1.5;">
+                          If you didn't expect this invitation, you can safely ignore this email.
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
+        </html>
+      `,
+          text: `Hi there,
+
+  You've been invited to join ${data.organization.name} as a ${data.role}.
+ 
+   Accept your invitation by clicking this link:
+                           ${data.invitationLink}
+
+This invitation will expire in 7 days.
+
+If you didn't expect this invitation, you can safely ignore this email.`,
         });
       },
+      ac,
+      roles: { admin, member, owner, manager },
     }),
-    admin(),
   ],
   user: {
     modelName: "users",
     additionalFields: {
       phone: { type: "string", required: false, input: true },
-      dob: { type: "string", required: false, input: true },
-      doj: { type: "string", required: false, input: true },
+      dob: { type: "date", required: false, input: true },
+      doj: { type: "date", required: false, input: true },
       isActive: {
         type: "boolean",
         required: false,
@@ -269,11 +351,11 @@ export const auth = betterAuth({
         input: false,
       },
       status: { type: "string", required: false, input: true },
-      transferDate: { type: "string", required: false, input: true },
+      transferDate: { type: "date", required: false, input: true },
       transferReason: { type: "string", required: false, input: true },
       subscriptionType: { type: "string", required: false, input: false },
-      subscriptionStartedAt: { type: "string", required: false, input: false },
-      subscriptionExpiresAt: { type: "string", required: false, input: false },
+      subscriptionStartedAt: { type: "date", required: false, input: false },
+      subscriptionExpiresAt: { type: "date", required: false, input: false },
       subscriptionStatus: { type: "string", required: false, input: false },
     },
   },
@@ -291,7 +373,6 @@ export const auth = betterAuth({
         input: true,
         fieldName: "team_size",
       },
-
       isActive: {
         type: "boolean",
         required: false,
@@ -315,6 +396,20 @@ export const auth = betterAuth({
         required: false,
         input: true,
         fieldName: "business_website",
+      },
+      business_phone: {
+        // ADD THIS
+        type: "string",
+        required: false,
+        input: true,
+        fieldName: "business_phone",
+      },
+      business_email: {
+        // ADD THIS
+        type: "string",
+        required: false,
+        input: true,
+        fieldName: "business_email",
       },
     },
   },

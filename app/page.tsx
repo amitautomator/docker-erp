@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState, useEffect } from "react";
 
 export default function Page() {
@@ -117,14 +118,17 @@ export default function Page() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-6 justify-center mb-20">
-            <button className="group relative px-12 py-6 bg-linear-to-r from-red-600 to-yellow-500 rounded-full font-bold text-xl overflow-hidden transform hover:scale-105 transition-all duration-300 shadow-[0_0_50px_rgba(220,38,38,0.4)] hover:shadow-[0_0_80px_rgba(220,38,38,0.6)]">
+            <Link
+              href="/signup"
+              className="group relative px-12 py-6 bg-linear-to-r from-red-600 to-yellow-500 rounded-full font-bold text-xl overflow-hidden transform hover:scale-105 transition-all duration-300 shadow-[0_0_50px_rgba(220,38,38,0.4)] hover:shadow-[0_0_80px_rgba(220,38,38,0.6)]"
+            >
               <span className="relative z-10 flex items-center justify-center gap-2">
                 Get Started Free
                 <span className="group-hover:translate-x-2 transition-transform duration-300">
                   →
                 </span>
               </span>
-            </button>
+            </Link>
             <button className="group px-12 py-6 bg-white/5 backdrop-blur-sm border-2 border-white/20 rounded-full font-bold text-xl hover:bg-white/10 hover:border-white/40 transition-all duration-300 transform hover:scale-105">
               <span className="flex items-center justify-center gap-2">
                 Watch Demo

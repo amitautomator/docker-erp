@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,8 +13,8 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
-
 import {
   Building2,
   Users,
@@ -28,126 +28,19 @@ import {
   Pencil,
   Loader2,
 } from "lucide-react";
+
+import { toast } from "sonner";
+
 import axios from "axios";
 import { authClient } from "@/lib/auth-client";
 import DetailBox from "@/components/DetailBox";
 import BusinessProfileForm from "@/components/businessProfile";
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const ACCEPTED_IMAGE_TYPES = [
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-];
-
-const formSchema = z.object({
-  businessLogo: z
-    .instanceof(FileList)
-    .optional()
-    .refine(
-      (files) =>
-        !files || files.length === 0 || files[0]?.size <= MAX_FILE_SIZE,
-      { message: "Logo must be less than 10M" },
-    )
-    .refine(
-      (files) =>
-        !files ||
-        files.length === 0 ||
-        ACCEPTED_IMAGE_TYPES.includes(files[0]?.type),
-      { message: "Only .jpg, .jpeg, .png and .webp formats are supported" },
-    ),
-  name: z
-    .string()
-    .min(2, { message: "Business name must be at least 2 characters" })
-    .max(100, { message: "Business name must be less than 100 characters" })
-    .trim(),
-  team_size: z
-    .union([z.number(), z.string()])
-    .transform((val) => (typeof val === "string" ? parseInt(val, 10) : val))
-    .pipe(
-      z
-        .number({ message: "Team size must be a whole number" })
-        .int()
-        .min(1, { message: "Team size must be at least 1" })
-        .max(100000, { message: "Team size seems unrealistic" }),
-    ),
-  business_address: z
-    .string()
-    .min(5, { message: "Address must be at least 5 characters" })
-    .max(200, { message: "Address must be less than 200 characters" })
-    .trim(),
-  business_type: z
-    .string()
-    .min(2, { message: "Industry is required" })
-    .max(50, { message: "Industry must be less than 50 characters" })
-    .trim(),
-  business_email: z
-    .email({ message: "Invalid email address" })
-    .toLowerCase()
-    .trim(),
-  business_website: z
-    .string()
-    .trim()
-    .optional()
-    .transform((val) => val || ""),
-  business_phone: z
-    .string()
-    .regex(/^[0-9\s+()-]+$/, { message: "Invalid phone number format" })
-    .min(10, { message: "Phone number must be at least 10 digits" })
-    .trim(),
-  gst: z
-    .string()
-    .trim()
-    .refine(
-      (val) => val === "" || (val.length === 15 && /^[0-9A-Z]+$/.test(val)),
-      { message: "GST must be exactly 15 alphanumeric characters" },
-    )
-    .optional()
-    .transform((val) => val || ""),
-  logo: z.string().optional(),
-});
+import { formSchema } from "@/schema/form.Schema";
+import { transformApiDataToFormValues } from "@/lib/utils";
+import InviteForm from "@/components/InviteForm";
+import { fetchOrgData, fetchMembersData } from "@/lib/utils";
 
 type BusinessProfileValues = z.infer<typeof formSchema>;
-
-// Type for the API response
-interface ApiOrganizationResponse {
-  id: string;
-  name: string;
-  slug: string;
-  logo: string;
-  team_size: string | number;
-  business_phone: string;
-  business_email: string;
-  business_type: string;
-  business_address: string;
-  business_website: string;
-  gst: string;
-  isActive: boolean;
-  updatedAt: string;
-  createdAt: string;
-  metadata: any;
-}
-
-const transformApiDataToFormValues = (
-  apiData: ApiOrganizationResponse,
-): BusinessProfileValues => {
-  return {
-    name: apiData.name,
-    team_size:
-      typeof apiData.team_size === "string"
-        ? parseInt(apiData.team_size, 10)
-        : apiData.team_size,
-    business_address: apiData.business_address,
-    business_type: apiData.business_type,
-    business_email: apiData.business_email,
-    business_website: apiData.business_website || "",
-    business_phone: apiData.business_phone,
-    gst: apiData.gst || "",
-    logo: apiData.logo,
-    businessLogo: undefined,
-  };
-};
 
 const getBusinessDetails = (data: BusinessProfileValues) => [
   {
@@ -183,49 +76,37 @@ const getBusinessDetails = (data: BusinessProfileValues) => [
   },
 ];
 
-export default function BusinessPage() {
+export default function TeamMemberPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [savedData, setSavedData] = useState<BusinessProfileValues | null>(
     null,
   );
+
+  const [membersData, setMembersData] = useState<any[]>([]);
+
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchOrgData = async () => {
-    try {
-      setIsLoading(true);
-      const response = await axios.get("/api/auth/organization/list", {
-        withCredentials: true,
-      });
-
-      if (response.data && response.data.length > 0) {
-        const fullOrgResponse = await axios.post(
-          "/api/getFullOrg",
-          {
-            id: response.data[0]?.id,
-          },
-          {
-            withCredentials: true,
-          },
-        );
-
-        console.log("Full Organization Response:", fullOrgResponse.data);
-
-        // Transform the API response to match form structure
-        const transformedData = transformApiDataToFormValues(
-          fullOrgResponse.data,
-        );
-        setSavedData(transformedData);
-      }
-    } catch (error) {
-      console.error("Error fetching organization data:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [memberDialogOpen, setMemberDialogOpen] = useState(false);
 
   useEffect(() => {
-    fetchOrgData();
+    const loadData = async () => {
+      try {
+        const orgData = await fetchOrgData();
+        if (orgData) setSavedData(orgData);
+        const membersData = await fetchMembersData();
+        console.log("Members Data:", orgData, membersData);
+        if (membersData) {
+          setMembersData(membersData);
+          console.log("Members Data Set:", membersData);
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
   }, []);
 
   const form = useForm<BusinessProfileValues>({
@@ -249,6 +130,7 @@ export default function BusinessPage() {
     [savedData],
   );
 
+  // handle form submission
   const onSubmit = async (values: BusinessProfileValues) => {
     setIsUploading(true);
     try {
@@ -339,11 +221,9 @@ export default function BusinessPage() {
           name: values.name,
           logo: uploadedLogo,
         });
-
         if (response.data.error) {
           throw new Error(`ERROR FROM API: ${response.data.error}`);
         }
-
         const transformedData = transformApiDataToFormValues(response.data);
         setSavedData(transformedData);
         await fetchOrgData();
@@ -358,6 +238,8 @@ export default function BusinessPage() {
     }
   };
 
+  // handle edit button click
+
   const handleEdit = () => {
     if (savedData) {
       form.reset(savedData);
@@ -365,10 +247,34 @@ export default function BusinessPage() {
     setIsDialogOpen(true);
   };
 
+  // handle dialog close
   const handleDialogClose = (open: boolean) => {
     setIsDialogOpen(open);
     if (!open) {
       form.clearErrors();
+    }
+  };
+
+  // this will help to send invites
+
+  const sendInvites = async (email: string, role: string, orgID: string) => {
+    if (!email || !role || !orgID) {
+      throw new Error("Email, role, and orgID are required");
+    }
+    try {
+      const response = await axios.post("/api/sendInvites", {
+        email,
+        role,
+        organizationId: orgID,
+      });
+
+      toast.success("Invite sent successfully!");
+      setIsDialogOpen(false);
+
+      return response.data;
+    } catch (error) {
+      console.error("Error sending invite:", error);
+      throw error;
     }
   };
 
@@ -392,7 +298,6 @@ export default function BusinessPage() {
             Manage your business profile and team members
           </p>
         </header>
-
         {/* Empty State */}
         {!savedData ? (
           <EmptyState onCreateClick={() => setIsDialogOpen(true)} />
@@ -431,11 +336,37 @@ export default function BusinessPage() {
                     Manage your organization members and their roles
                   </p>
                 </div>
-                <Button size="sm" className="gap-2">
-                  <Plus className="w-4 h-4" /> Add Member
-                </Button>
+                <Dialog
+                  open={memberDialogOpen}
+                  onOpenChange={setMemberDialogOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="gap-2">
+                      <Plus className="w-4 h-4" /> Invite Member
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Invite Member</DialogTitle>
+                      <DialogDescription>
+                        Invite a new member to your organization.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <InviteForm
+                      onSubmit={async (data) => {
+                        console.log("Invite Form Data:", data);
+                        if (savedData.id) {
+                          await sendInvites(
+                            data.email,
+                            data.role,
+                            savedData.id,
+                          );
+                        }
+                      }}
+                    />
+                  </DialogContent>
+                </Dialog>
               </div>
-
               {/* This is where you'll add your member list component */}
               <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                 <CardContent className="p-8">
@@ -474,7 +405,7 @@ export default function BusinessPage() {
           </DialogHeader>
 
           <BusinessProfileForm
-            form={form}
+            businessForm={form}
             onSubmit={onSubmit}
             isPending={isUploading}
             isEditing={!!savedData}
@@ -524,7 +455,6 @@ function ProfileCard({
 }: ProfileCardProps) {
   return (
     <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
-      {/* Header with Logo and Basic Info */}
       <CardHeader className="border-b border-zinc-100 dark:border-zinc-800 bg-linear-to-br from-zinc-50 to-white dark:from-zinc-900 dark:to-zinc-900/50">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
           <div className="h-24 w-24 rounded-2xl bg-white dark:bg-zinc-800 flex items-center justify-center overflow-hidden border-2 border-zinc-200 dark:border-zinc-700 shadow-sm">

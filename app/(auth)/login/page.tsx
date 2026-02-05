@@ -90,7 +90,7 @@ export default function LoginPage() {
             toast.error(ctx.error.message || "Login failed.");
           }
         },
-      }
+      },
     );
   };
 
@@ -190,7 +190,6 @@ export default function LoginPage() {
               />
               <Link
                 href="/forgot-password"
-                size="sm"
                 className="text-sm font-medium text-primary hover:underline"
               >
                 Forgot?

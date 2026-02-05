@@ -11,6 +11,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
 import {
   Form,
   FormControl,
@@ -19,6 +20,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +34,9 @@ import {
   signupSchema,
 } from "@/schema/auth.schema";
 import { authClient } from "@/lib/auth-client";
+import axios from "axios";
+
+// import db from "@/lib/drizzle/db";
 
 const PasswordRequirement = ({ met, text }: { met: boolean; text: string }) => (
   <div
@@ -92,15 +97,21 @@ export default function SignupPage() {
 
   const onSubmit = async (formData: SignupFormData) => {
     try {
-      await authClient.signUp.email(
+      const { data } = await authClient.signUp.email(
         {
           name: formData.firstName,
           email: formData.email,
           password: formData.password,
-          // phone: `${formData.cCode}${formData.phone}`,
         },
         {
-          onSuccess: () => {
+          onSuccess: async () => {
+            const res = await axios.post("/api/updateUser", {
+              phone: `${formData.cCode}${formData.phone}`,
+              ...data,
+            });
+            if (res.status !== 200) {
+              toast.error("Failed to update user Contact details.");
+            }
             toast.success("Account created successfully!");
             router.push("/user/dashboard");
           },
