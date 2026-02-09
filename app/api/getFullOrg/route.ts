@@ -11,7 +11,7 @@ export async function POST(req: Request) {
       .select()
       .from(organization)
       .where(eq(organization.id, data.id));
-    console.log("Organization Data from DB:", dbData);
+    // console.log("Organization Data from DB:", dbData);
     return Response.json(dbData[0]);
   } catch (error) {
     console.error("Error fetching organization data:", error);

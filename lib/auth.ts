@@ -15,8 +15,7 @@ import {
 import { ac, admin, member, owner, manager } from "./permissions";
 
 export const auth = betterAuth({
-  baseURL: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3200",
-
+  baseURL: process.env.NEXT_PUBLIC_BASE_URL!,
   secret: process.env.BETTER_AUTH_SECRET!,
   basePath: "/api/auth",
 
@@ -148,7 +147,6 @@ export const auth = betterAuth({
     sendOnSignUp: true,
     autoSignInAfterVerification: true,
   },
-
   emailAndPassword: {
     sendResetPassword: async ({ user, url, token }, request) => {
       try {
@@ -327,7 +325,7 @@ export const auth = betterAuth({
   You've been invited to join ${data.organization.name} as a ${data.role}.
  
    Accept your invitation by clicking this link:
-                           ${data.invitationLink}
+                           ${invitationLink}
 
 This invitation will expire in 7 days.
 

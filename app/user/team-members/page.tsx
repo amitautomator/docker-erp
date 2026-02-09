@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useLayoutEffect } from "react";
 import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -27,11 +27,13 @@ import {
   Plus,
   Pencil,
   Loader2,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 
 import { toast } from "sonner";
-
 import axios from "axios";
+
 import { authClient } from "@/lib/auth-client";
 import DetailBox from "@/components/DetailBox";
 import BusinessProfileForm from "@/components/businessProfile";
@@ -39,6 +41,141 @@ import { formSchema } from "@/schema/form.Schema";
 import { transformApiDataToFormValues } from "@/lib/utils";
 import InviteForm from "@/components/InviteForm";
 import { fetchOrgData, fetchMembersData } from "@/lib/utils";
+
+import {
+  useReactTable,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getExpandedRowModel,
+  getSortedRowModel,
+  flexRender,
+  getFacetedRowModel,
+  getFacetedUniqueValues,
+  getFilteredRowModel,
+  getGroupedRowModel,
+  SortingState,
+} from "@tanstack/react-table";
+
+import type { ColumnDef } from "@tanstack/react-table";
+
+// Define your member type
+interface Member {
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  users: {
+    image: string;
+    name: string;
+    email: string;
+    phone: string;
+    dob: string;
+    doj: string;
+    emailVerified: boolean;
+  };
+}
+
+// Then define columns with proper typing
+const columns: ColumnDef<Member>[] = [
+  {
+    accessorKey: "name",
+    header: "Name",
+    cell: ({ row }) => (
+      <div className="flex items-center gap-3">
+        {row.original.users.image ? (
+          <Image
+            className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"
+            src={row.original.users.image}
+            width={40}
+            height={40}
+            alt="user Images"
+          />
+        ) : (
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-300">
+            {row.original.users.name?.charAt(0).toUpperCase()}
+          </div>
+        )}
+        <span>{row.original.users.name}</span>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "email",
+    header: "Email",
+    cell: ({ row }) => (
+      <span className="text-zinc-600 dark:text-zinc-300">
+        {row.original.users.email}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "emailVerified",
+    header: "Email Verified",
+    cell: ({ row }) => (
+      <span className="text-zinc-600 dark:text-zinc-300">
+        {String(row.original.users.emailVerified).toUpperCase()}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "role",
+    header: "Role",
+    cell: ({ row }) => (
+      <span className="px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-xs">
+        {row.original.role.toUpperCase()}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "phone",
+    header: "Phone",
+    cell: ({ row }) => (
+      <span className="px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-xs">
+        {row.original.users.phone || "Not Available"}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "dob",
+    header: "Date of Birth",
+    cell: ({ row }) => (
+      <span className="px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-xs">
+        {row.original.users.dob || "Not Available"}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "doj",
+    header: "Date of Joining",
+    cell: ({ row }) => (
+      <span className="px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-xs">
+        {row.original.users.doj || "Not Available"}
+      </span>
+    ),
+  },
+];
+
+function BlankMember() {
+  return (
+    <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+      <CardContent className="p-8">
+        <div className="flex flex-col items-center justify-center text-center space-y-3">
+          <div className="bg-zinc-100 dark:bg-zinc-800 p-3 rounded-full">
+            <Users className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
+          </div>
+          <div>
+            <p className="font-medium text-zinc-900 dark:text-zinc-100">
+              No team members yet
+            </p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              Add your first team member to get started
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 type BusinessProfileValues = z.infer<typeof formSchema>;
 
@@ -77,28 +214,33 @@ const getBusinessDetails = (data: BusinessProfileValues) => [
 ];
 
 export default function TeamMemberPage() {
+  //
+
+  const [isLoading, setIsLoading] = useState(true);
+
+  const [membersData, setMembersData] = useState<any[]>([]);
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [savedData, setSavedData] = useState<BusinessProfileValues | null>(
     null,
   );
 
-  const [membersData, setMembersData] = useState<any[]>([]);
-
   const [isUploading, setIsUploading] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
   const [memberDialogOpen, setMemberDialogOpen] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const loadData = async () => {
       try {
         const orgData = await fetchOrgData();
-        if (orgData) setSavedData(orgData);
-        const membersData = await fetchMembersData();
-        console.log("Members Data:", orgData, membersData);
-        if (membersData) {
-          setMembersData(membersData);
-          console.log("Members Data Set:", membersData);
+        console.log("Fetched Org Data:", orgData);
+        if (orgData && orgData.id) {
+          setSavedData(orgData);
+          const membersData = await fetchMembersData(orgData.id);
+          // console.log("Fetched Members Data:", membersData);
+          if (membersData) {
+            setMembersData(membersData.data);
+            console.log("Members Data Set:", membersData.data);
+          }
         }
       } catch (error) {
         console.error(error);
@@ -106,6 +248,7 @@ export default function TeamMemberPage() {
         setIsLoading(false);
       }
     };
+
     loadData();
   }, []);
 
@@ -131,7 +274,7 @@ export default function TeamMemberPage() {
   );
 
   // handle form submission
-  const onSubmit = async (values: BusinessProfileValues) => {
+  const onSubmitBusiness = async (values: BusinessProfileValues) => {
     setIsUploading(true);
     try {
       let uploadedLogo = savedData?.logo || null;
@@ -170,7 +313,7 @@ export default function TeamMemberPage() {
         logo: uploadedLogo,
       };
 
-      console.log("📥 Submitting Form Data:", formData);
+      // console.log("📥 Submitting Form Data:", formData);
 
       if (!savedData) {
         // Create new organization
@@ -188,7 +331,7 @@ export default function TeamMemberPage() {
           throw new Error("Organization creation failed");
         }
 
-        console.log("✅ Auth Client Organization Created:", data);
+        // console.log("✅ Auth Client Organization Created:", data);
 
         const response = await axios.post("/api/createOrg", {
           ...data,
@@ -278,6 +421,25 @@ export default function TeamMemberPage() {
     }
   };
 
+  const [sorting, setSorting] = useState<SortingState>([]); // can set initial sorting state here
+
+  const table = useReactTable({
+    columns,
+    data: membersData,
+    getCoreRowModel: getCoreRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getGroupedRowModel: getGroupedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    state: {
+      sorting,
+    },
+    onSortingChange: setSorting,
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen w-full bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
@@ -318,7 +480,7 @@ export default function TeamMemberPage() {
                   <Pencil className="w-4 h-4" /> Edit
                 </Button>
               </div>
-              <ProfileCard
+              <BusinessProfileCard
                 savedData={savedData}
                 logoPreview={savedData?.logo || null}
                 businessDetails={businessDetails}
@@ -368,23 +530,122 @@ export default function TeamMemberPage() {
                 </Dialog>
               </div>
               {/* This is where you'll add your member list component */}
-              <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                <CardContent className="p-8">
-                  <div className="flex flex-col items-center justify-center text-center space-y-3">
-                    <div className="bg-zinc-100 dark:bg-zinc-800 p-3 rounded-full">
-                      <Users className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
+              {membersData.length === 0 ? (
+                <BlankMember />
+              ) : (
+                // <MembersList members={membersData} />
+                <Card className="border-zinc-200 dark:border-zinc-800">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                        {table.getHeaderGroups().map((headerGroup) => (
+                          <tr key={headerGroup.id}>
+                            {headerGroup.headers.map((header) => (
+                              <th
+                                key={header.id}
+                                className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider"
+                              >
+                                {header.isPlaceholder
+                                  ? null
+                                  : flexRender(
+                                      header.column.columnDef.header,
+                                      header.getContext(),
+                                    )}
+                              </th>
+                            ))}
+                          </tr>
+                        ))}
+                      </thead>
+                      <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
+                        {table.getRowModel().rows.map((row) => (
+                          <>
+                            <tr
+                              key={row.id}
+                              className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                            >
+                              {row.getVisibleCells().map((cell) => (
+                                <td
+                                  key={cell.id}
+                                  className="px-6 py-4 whitespace-nowrap text-sm text-zinc-900 dark:text-zinc-100"
+                                >
+                                  {flexRender(
+                                    cell.column.columnDef.cell,
+                                    cell.getContext(),
+                                  )}
+                                </td>
+                              ))}
+                            </tr>
+                            {row.getIsExpanded() && (
+                              <tr>
+                                <td
+                                  colSpan={row.getVisibleCells().length}
+                                  className="px-6 py-4 bg-zinc-50 dark:bg-zinc-800/30"
+                                >
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                    <div>
+                                      <p className="text-zinc-500 dark:text-zinc-400 text-xs mb-1">
+                                        Phone
+                                      </p>
+                                      <p className="text-zinc-900 dark:text-zinc-100">
+                                        {row.original.users.phone ||
+                                          "Not Available"}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-zinc-500 dark:text-zinc-400 text-xs mb-1">
+                                        Date of Birth
+                                      </p>
+                                      <p className="text-zinc-900 dark:text-zinc-100">
+                                        {row.original.users.dob ||
+                                          "Not Available"}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-zinc-500 dark:text-zinc-400 text-xs mb-1">
+                                        Date of Joining
+                                      </p>
+                                      <p className="text-zinc-900 dark:text-zinc-100">
+                                        {row.original.users.doj ||
+                                          "Not Available"}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 dark:border-zinc-800">
+                    <div className="text-sm text-zinc-500">
+                      Showing {table.getRowModel().rows.length} of{" "}
+                      {membersData.length} members
                     </div>
-                    <div>
-                      <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                        No team members yet
-                      </p>
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-                        Add your first team member to get started
-                      </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => table.previousPage()}
+                        disabled={!table.getCanPreviousPage()}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => table.nextPage()}
+                        disabled={!table.getCanNextPage()}
+                      >
+                        Next
+                      </Button>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </Card>
+              )}
             </section>
           </>
         )}
@@ -406,7 +667,7 @@ export default function TeamMemberPage() {
 
           <BusinessProfileForm
             businessForm={form}
-            onSubmit={onSubmit}
+            onSubmit={onSubmitBusiness}
             isPending={isUploading}
             isEditing={!!savedData}
           />
@@ -448,7 +709,7 @@ interface ProfileCardProps {
   businessDetails: ReturnType<typeof getBusinessDetails>;
 }
 
-function ProfileCard({
+function BusinessProfileCard({
   savedData,
   logoPreview,
   businessDetails,

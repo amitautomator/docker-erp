@@ -32,9 +32,11 @@ export const fetchOrgData = async () => {
   }
 };
 
-export const fetchMembersData = async () => {
+export const fetchMembersData = async (orgID: string) => {
   try {
-    const response = await axios.get("/api/auth/organization/list-members", {
+    console.log(orgID);
+    const response = await axios.post("/api/team-members", {
+      orgID,
       withCredentials: true,
     });
     if (response.data) {
