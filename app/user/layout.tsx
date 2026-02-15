@@ -25,8 +25,6 @@ import {
 } from "@tabler/icons-react";
 import { authClient } from "@/lib/auth-client";
 
-import logOut from "@/lib/logOut";
-
 interface SessionType {
   session?: {
     id: string;
@@ -73,13 +71,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <IconBrandTabler className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
       ),
     },
-    {
-      label: "Task Application",
-      href: "/user/task-application",
-      icon: (
-        <IconChecklist className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
-    },
+
     {
       label: "Links",
       href: "/user/links",
@@ -135,7 +127,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div
           className={cn(
             "mx-auto flex w-full  flex-1 flex-col overflow-hidden rounded-md border border-neutral-200 bg-gray-100 md:flex-row dark:border-neutral-700 dark:bg-neutral-800",
-            "min-h-screen"
+            "min-h-screen",
           )}
         >
           <Sidebar open={open} setOpen={setOpen}>
@@ -149,7 +141,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     ) : (
                       ""
                       // <SidebarLink key={idx} link={link} />
-                    )
+                    ),
                   )}
                 </div>
               </div>

@@ -241,7 +241,7 @@ export const auth = betterAuth({
 
   plugins: [
     nextCookies(),
-    lastLoginMethod(),
+    lastLoginMethod({ storeInDatabase: true }),
     openAPI(),
     multiSession(),
     organization({

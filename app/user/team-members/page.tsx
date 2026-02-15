@@ -1,8 +1,7 @@
 "use client";
-
-import { useState, useMemo, useEffect, useLayoutEffect } from "react";
+import { useState, useMemo, useLayoutEffect } from "react";
 import Image from "next/image";
-import { useForm } from "react-hook-form";
+import { useForm, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -27,8 +26,6 @@ import {
   Plus,
   Pencil,
   Loader2,
-  ChevronDown,
-  ChevronRight,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -42,118 +39,7 @@ import { transformApiDataToFormValues } from "@/lib/utils";
 import InviteForm from "@/components/InviteForm";
 import { fetchOrgData, fetchMembersData } from "@/lib/utils";
 
-import {
-  useReactTable,
-  getCoreRowModel,
-  getPaginationRowModel,
-  getExpandedRowModel,
-  getSortedRowModel,
-  flexRender,
-  getFacetedRowModel,
-  getFacetedUniqueValues,
-  getFilteredRowModel,
-  getGroupedRowModel,
-  SortingState,
-} from "@tanstack/react-table";
-
-import type { ColumnDef } from "@tanstack/react-table";
-
-// Define your member type
-interface Member {
-  name: string;
-  email: string;
-  role: string;
-  status: string;
-  users: {
-    image: string;
-    name: string;
-    email: string;
-    phone: string;
-    dob: string;
-    doj: string;
-    emailVerified: boolean;
-  };
-}
-
-// Then define columns with proper typing
-const columns: ColumnDef<Member>[] = [
-  {
-    accessorKey: "name",
-    header: "Name",
-    cell: ({ row }) => (
-      <div className="flex items-center gap-3">
-        {row.original.users.image ? (
-          <Image
-            className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"
-            src={row.original.users.image}
-            width={40}
-            height={40}
-            alt="user Images"
-          />
-        ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-300">
-            {row.original.users.name?.charAt(0).toUpperCase()}
-          </div>
-        )}
-        <span>{row.original.users.name}</span>
-      </div>
-    ),
-  },
-  {
-    accessorKey: "email",
-    header: "Email",
-    cell: ({ row }) => (
-      <span className="text-zinc-600 dark:text-zinc-300">
-        {row.original.users.email}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "emailVerified",
-    header: "Email Verified",
-    cell: ({ row }) => (
-      <span className="text-zinc-600 dark:text-zinc-300">
-        {String(row.original.users.emailVerified).toUpperCase()}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "role",
-    header: "Role",
-    cell: ({ row }) => (
-      <span className="px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-xs">
-        {row.original.role.toUpperCase()}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "phone",
-    header: "Phone",
-    cell: ({ row }) => (
-      <span className="px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-xs">
-        {row.original.users.phone || "Not Available"}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "dob",
-    header: "Date of Birth",
-    cell: ({ row }) => (
-      <span className="px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-xs">
-        {row.original.users.dob || "Not Available"}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "doj",
-    header: "Date of Joining",
-    cell: ({ row }) => (
-      <span className="px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-xs">
-        {row.original.users.doj || "Not Available"}
-      </span>
-    ),
-  },
-];
+import MembersTable, { Member } from "@/components/MemberTable";
 
 function BlankMember() {
   return (
@@ -214,17 +100,12 @@ const getBusinessDetails = (data: BusinessProfileValues) => [
 ];
 
 export default function TeamMemberPage() {
-  //
-
   const [isLoading, setIsLoading] = useState(true);
-
-  const [membersData, setMembersData] = useState<any[]>([]);
-
+  const [membersData, setMembersData] = useState<Member[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [savedData, setSavedData] = useState<BusinessProfileValues | null>(
     null,
   );
-
   const [isUploading, setIsUploading] = useState(false);
   const [memberDialogOpen, setMemberDialogOpen] = useState(false);
 
@@ -232,18 +113,17 @@ export default function TeamMemberPage() {
     const loadData = async () => {
       try {
         const orgData = await fetchOrgData();
-        console.log("Fetched Org Data:", orgData);
         if (orgData && orgData.id) {
           setSavedData(orgData);
-          const membersData = await fetchMembersData(orgData.id);
-          // console.log("Fetched Members Data:", membersData);
-          if (membersData) {
-            setMembersData(membersData.data);
-            console.log("Members Data Set:", membersData.data);
+          const membersResponse = await fetchMembersData(orgData.id);
+          if (membersResponse) {
+            console.log("Fetched members data:", membersResponse.data);
+            setMembersData(membersResponse.data);
           }
         }
       } catch (error) {
         console.error(error);
+        toast.error("Failed to load organization data");
       } finally {
         setIsLoading(false);
       }
@@ -252,7 +132,7 @@ export default function TeamMemberPage() {
     loadData();
   }, []);
 
-  const form = useForm<BusinessProfileValues>({
+  const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       businessLogo: undefined,
@@ -266,7 +146,7 @@ export default function TeamMemberPage() {
       gst: "",
       logo: "",
     },
-  });
+  }) as UseFormReturn<BusinessProfileValues>;
 
   const businessDetails = useMemo(
     () => (savedData ? getBusinessDetails(savedData) : []),
@@ -278,22 +158,17 @@ export default function TeamMemberPage() {
     setIsUploading(true);
     try {
       let uploadedLogo = savedData?.logo || null;
-
-      if (values.businessLogo?.length) {
+      if (values.businessLogo && values.businessLogo[0]) {
         const file = values.businessLogo[0];
-
         const presignResData = await axios.post("/api/s3/presignedURL", {
           fileName: file.name,
           fileType: file.type,
           fileSize: file.size,
         });
-
         const presignResOBJ = presignResData.data;
-
         if (!presignResOBJ || !presignResOBJ.uploadUrl) {
           throw new Error("Failed to get upload URL from server");
         }
-
         try {
           await axios.put(presignResOBJ.uploadUrl, file, {
             headers: {
@@ -306,33 +181,26 @@ export default function TeamMemberPage() {
         }
         uploadedLogo = `https://${process.env.NEXT_PUBLIC_CLOUDFRONT_DOMAIN}/${presignResOBJ.newFileName}`;
       }
-
-      const formData = {
+      const normalizedValues = {
         ...values,
-        slug: values.name.toLowerCase().replace(/[^a-z0-9]/g, "-"),
+        slug: values.name
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, ""),
         logo: uploadedLogo,
       };
-
-      // console.log("📥 Submitting Form Data:", formData);
-
       if (!savedData) {
-        // Create new organization
         const { data, error } = await authClient.organization.create({
           name: values.name,
-          slug: formData.slug,
+          slug: normalizedValues.slug,
           logo: uploadedLogo || undefined,
         });
-
         if (error) {
           throw new Error(error.message);
         }
-
         if (!data) {
           throw new Error("Organization creation failed");
         }
-
-        // console.log("✅ Auth Client Organization Created:", data);
-
         const response = await axios.post("/api/createOrg", {
           ...data,
           business_website: values.business_website,
@@ -343,16 +211,16 @@ export default function TeamMemberPage() {
           team_size: values.team_size,
           gst: values.gst,
         });
-
         if (response.data.error) {
+          await authClient.organization.delete({ organizationId: data.id });
           throw new Error(`ERROR FROM API: ${response.data.error}`);
         }
         const transformedData = transformApiDataToFormValues(response.data);
         setSavedData(transformedData);
         await fetchOrgData();
+        toast.success("Business profile created successfully!");
         setIsDialogOpen(false);
       } else {
-        // Update existing organization
         const response = await axios.put("/api/updateOrg", {
           business_website: values.business_website,
           business_type: values.business_type,
@@ -370,19 +238,18 @@ export default function TeamMemberPage() {
         const transformedData = transformApiDataToFormValues(response.data);
         setSavedData(transformedData);
         await fetchOrgData();
+        toast.success("Business profile updated successfully!");
         setIsDialogOpen(false);
       }
-      setIsDialogOpen(false);
     } catch (err) {
       console.error("❌ Upload failed:", err);
-      alert(err instanceof Error ? err.message : "Upload failed");
+      toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setIsUploading(false);
     }
   };
 
   // handle edit button click
-
   const handleEdit = () => {
     if (savedData) {
       form.reset(savedData);
@@ -399,7 +266,6 @@ export default function TeamMemberPage() {
   };
 
   // this will help to send invites
-
   const sendInvites = async (email: string, role: string, orgID: string) => {
     if (!email || !role || !orgID) {
       throw new Error("Email, role, and orgID are required");
@@ -412,33 +278,23 @@ export default function TeamMemberPage() {
       });
 
       toast.success("Invite sent successfully!");
-      setIsDialogOpen(false);
+      setMemberDialogOpen(false);
+
+      // Refresh members data
+      if (savedData?.id) {
+        const membersResponse = await fetchMembersData(savedData.id);
+        if (membersResponse) {
+          setMembersData(membersResponse.data);
+        }
+      }
 
       return response.data;
     } catch (error) {
       console.error("Error sending invite:", error);
+      toast.error("Failed to send invite");
       throw error;
     }
   };
-
-  const [sorting, setSorting] = useState<SortingState>([]); // can set initial sorting state here
-
-  const table = useReactTable({
-    columns,
-    data: membersData,
-    getCoreRowModel: getCoreRowModel(),
-    getExpandedRowModel: getExpandedRowModel(),
-    getFacetedRowModel: getFacetedRowModel(),
-    getFacetedUniqueValues: getFacetedUniqueValues(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getGroupedRowModel: getGroupedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    state: {
-      sorting,
-    },
-    onSortingChange: setSorting,
-  });
 
   if (isLoading) {
     return (
@@ -460,6 +316,7 @@ export default function TeamMemberPage() {
             Manage your business profile and team members
           </p>
         </header>
+
         {/* Empty State */}
         {!savedData ? (
           <EmptyState onCreateClick={() => setIsDialogOpen(true)} />
@@ -487,7 +344,7 @@ export default function TeamMemberPage() {
               />
             </section>
 
-            {/* Team Members Section - Placeholder */}
+            {/* Team Members Section */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -516,8 +373,7 @@ export default function TeamMemberPage() {
                     </DialogHeader>
                     <InviteForm
                       onSubmit={async (data) => {
-                        console.log("Invite Form Data:", data);
-                        if (savedData.id) {
+                        if (savedData?.id) {
                           await sendInvites(
                             data.email,
                             data.role,
@@ -529,122 +385,12 @@ export default function TeamMemberPage() {
                   </DialogContent>
                 </Dialog>
               </div>
-              {/* This is where you'll add your member list component */}
+
+              {/* Members Table or Empty State */}
               {membersData.length === 0 ? (
                 <BlankMember />
               ) : (
-                // <MembersList members={membersData} />
-                <Card className="border-zinc-200 dark:border-zinc-800">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-                        {table.getHeaderGroups().map((headerGroup) => (
-                          <tr key={headerGroup.id}>
-                            {headerGroup.headers.map((header) => (
-                              <th
-                                key={header.id}
-                                className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider"
-                              >
-                                {header.isPlaceholder
-                                  ? null
-                                  : flexRender(
-                                      header.column.columnDef.header,
-                                      header.getContext(),
-                                    )}
-                              </th>
-                            ))}
-                          </tr>
-                        ))}
-                      </thead>
-                      <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
-                        {table.getRowModel().rows.map((row) => (
-                          <>
-                            <tr
-                              key={row.id}
-                              className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-                            >
-                              {row.getVisibleCells().map((cell) => (
-                                <td
-                                  key={cell.id}
-                                  className="px-6 py-4 whitespace-nowrap text-sm text-zinc-900 dark:text-zinc-100"
-                                >
-                                  {flexRender(
-                                    cell.column.columnDef.cell,
-                                    cell.getContext(),
-                                  )}
-                                </td>
-                              ))}
-                            </tr>
-                            {row.getIsExpanded() && (
-                              <tr>
-                                <td
-                                  colSpan={row.getVisibleCells().length}
-                                  className="px-6 py-4 bg-zinc-50 dark:bg-zinc-800/30"
-                                >
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                    <div>
-                                      <p className="text-zinc-500 dark:text-zinc-400 text-xs mb-1">
-                                        Phone
-                                      </p>
-                                      <p className="text-zinc-900 dark:text-zinc-100">
-                                        {row.original.users.phone ||
-                                          "Not Available"}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <p className="text-zinc-500 dark:text-zinc-400 text-xs mb-1">
-                                        Date of Birth
-                                      </p>
-                                      <p className="text-zinc-900 dark:text-zinc-100">
-                                        {row.original.users.dob ||
-                                          "Not Available"}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <p className="text-zinc-500 dark:text-zinc-400 text-xs mb-1">
-                                        Date of Joining
-                                      </p>
-                                      <p className="text-zinc-900 dark:text-zinc-100">
-                                        {row.original.users.doj ||
-                                          "Not Available"}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
-                          </>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Pagination */}
-                  <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 dark:border-zinc-800">
-                    <div className="text-sm text-zinc-500">
-                      Showing {table.getRowModel().rows.length} of{" "}
-                      {membersData.length} members
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage()}
-                      >
-                        Previous
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.nextPage()}
-                        disabled={!table.getCanNextPage()}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
+                <MembersTable data={membersData} />
               )}
             </section>
           </>

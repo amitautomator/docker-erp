@@ -45,6 +45,7 @@ export const users = pgTable("users", {
     withTimezone: true,
   }),
   subscriptionStatus: text("subscription_status"),
+  lastLoginMethod: text("last_login_method"),
 });
 
 // Session Table

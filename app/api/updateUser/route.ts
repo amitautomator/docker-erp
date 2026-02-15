@@ -5,43 +5,49 @@ import { db } from "@/drizzle/src/db/db"; // Your Drizzle db instance
 import { users } from "@/drizzle/schema";
 
 export async function POST(req: Request) {
-  // Should add try-catch block to handle potential errors
   try {
     const session = await getServerSession();
-    console.log("✅ Update User Session: updateUser", session);
 
-    if (!session || !session.user) {
+    console.log(session?.session?.userId);
+    if (!session?.session?.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
+    console.log(body);
 
-    // Should validate required fields before update
-    if (!body.id) {
+    const updateData: Partial<typeof users.$inferInsert> = {};
+
+    if (body.name !== undefined) updateData.name = body.name;
+    if (body.email !== undefined) updateData.email = body.email;
+    if (body.phone !== undefined) updateData.phone = body.phone;
+    if (body.dob !== undefined) updateData.dob = body.dob;
+    if (body.doj !== undefined) updateData.doj = body.doj;
+
+    if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
-        { error: "User ID is required" },
+        { error: "No fields to update" },
         { status: 400 },
       );
     }
 
     const result = await db
       .update(users)
-      .set({
-        phone: body.phone,
-        dob: body.dob,
-        doj: body.doj,
-      })
-      .where(eq(users.id, body.id))
+      .set(updateData)
+      .where(eq(users.id, session.session.userId))
       .returning();
 
-    // Should check if update was successful
-    if (!result || result.length === 0) {
+    if (!result.length) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ message: "User updated", data: result[0] });
+    return NextResponse.json({
+      message: "User updated",
+      data: result[0],
+    });
   } catch (error) {
     console.error("Error updating user:", error);
+
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

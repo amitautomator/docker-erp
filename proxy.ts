@@ -4,7 +4,7 @@ import { getServerSession } from "@/lib/getServerSession";
 export async function proxy(request: NextRequest) {
   const session = await getServerSession();
 
-  console.log("session proxy", session);
+  // console.log("session proxy", session);
   const { pathname } = request.nextUrl;
 
   if (

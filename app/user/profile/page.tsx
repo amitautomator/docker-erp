@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,25 +9,29 @@ import { useForm } from "react-hook-form";
 import {
   User,
   ShieldCheck,
-  Activity,
   LogOut,
   Mail,
   Phone,
-  Briefcase,
   Loader2,
   Edit2,
   Save,
   X,
   Camera,
+  Calendar,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Crown,
+  Monitor,
   MapPin,
-  Globe,
+  LucideIcon,
 } from "lucide-react";
+
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import {
   Card,
   CardContent,
@@ -34,19 +39,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+
+import { Label } from "@/components/ui/label";
+import { Controller } from "react-hook-form";
+
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -54,15 +52,60 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+
 import { authClient } from "@/lib/auth-client";
 import { useGoogleSignIn } from "@/lib/google-auth";
-import { useState, useRef } from "react";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import axios from "axios";
+
+// --- Types ---
+type UserType = {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  email: string;
+  emailVerified: boolean;
+  name: string;
+  image?: string | null;
+  isActive: boolean;
+  role: string;
+  subscriptionType?: string;
+  phone?: string | null;
+  dob?: Date | null;
+  doj?: Date | null;
+  organizationId: string;
+  providers?: string[];
+  subscriptionStatus?: string;
+  subscriptionStartedAt?: Date;
+  subscriptionExpiresAt?: Date | null;
+};
+
+type SessionType = {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+  ipAddress: string;
+  userAgent: string;
+};
+
+type FullSessionType = {
+  user: UserType;
+  session: SessionType;
+};
 
 // --- Schemas ---
-
 const passwordSchema = z
   .object({
-    currentPassword: z.string().min(1, "Current password is required"),
+    currentPassword: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .regex(/[A-Z]/, "Must contain at least one uppercase letter")
+      .regex(/[a-z]/, "Must contain at least one lowercase letter")
+      .regex(/[0-9]/, "Must contain at least one number")
+      .regex(/[^A-Za-z0-9]/, "Must contain at least one symbol"),
+
     newPassword: z
       .string()
       .min(8, "Password must be at least 8 characters")
@@ -70,6 +113,7 @@ const passwordSchema = z
       .regex(/[a-z]/, "Must contain at least one lowercase letter")
       .regex(/[0-9]/, "Must contain at least one number")
       .regex(/[^A-Za-z0-9]/, "Must contain at least one symbol"),
+
     confirmPassword: z.string(),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
@@ -80,23 +124,43 @@ const passwordSchema = z
 const profileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
-  phone: z.string().optional(),
-  bio: z.string().max(500, "Bio must be less than 500 characters").optional(),
-  location: z.string().optional(),
-  website: z.string().url("Invalid URL").optional().or(z.literal("")),
+  phone: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val || val === "") return true; // Allow empty
+        // Remove spaces and check if it's a valid Indian phone number
+        const cleaned = val.replace(/\s+/g, "");
+        // Accepts formats: 9999999999 or 919999999999 or +919999999999
+        return /^(\+91|91)?[6-9]\d{9}$/.test(cleaned);
+      },
+      {
+        message:
+          "Invalid phone number. Use format: 91 9999999999 or 9999999999",
+      },
+    ),
+  dob: z.string().optional(),
+  doj: z.string().optional(),
 });
 
+type ProfileFormValues = z.infer<typeof profileSchema>;
+
+type PasswordFormValues = z.infer<typeof passwordSchema>;
+
 // --- Sub-Components ---
+
+interface ProfileAvatarProps {
+  session: FullSessionType;
+  onImageUpload: (file: File) => void;
+  isUploading: boolean;
+}
 
 const ProfileAvatar = ({
   session,
   onImageUpload,
   isUploading,
-}: {
-  session: any;
-  onImageUpload: (file: File) => void;
-  isUploading: boolean;
-}) => {
+}: ProfileAvatarProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -155,7 +219,13 @@ const ProfileAvatar = ({
   );
 };
 
-const DetailItem = ({ label, value, icon: Icon }: any) => (
+interface DetailItemProps {
+  label: string;
+  value: string;
+  icon: LucideIcon;
+}
+
+const DetailItem = ({ label, value, icon: Icon }: DetailItemProps) => (
   <div className="flex items-center gap-4 rounded-xl border bg-card p-4 shadow-sm transition-all hover:shadow-md">
     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
       <Icon className="h-5 w-5" />
@@ -169,19 +239,42 @@ const DetailItem = ({ label, value, icon: Icon }: any) => (
   </div>
 );
 
+const StatusBadge = ({ isActive }: { isActive: boolean }) => (
+  <Badge
+    variant={isActive ? "default" : "destructive"}
+    className="flex w-fit items-center gap-1.5"
+  >
+    {isActive ? (
+      <>
+        <CheckCircle2 className="h-3 w-3" />
+        Active
+      </>
+    ) : (
+      <>
+        <XCircle className="h-3 w-3" />
+        Inactive
+      </>
+    )}
+  </Badge>
+);
+
 export default function ProfilePage() {
   const router = useRouter();
-
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isImageUploading, setIsImageUploading] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
+  const lastMethod = authClient.getLastUsedLoginMethod();
+
   const { handleGoogleSignIn, isLoading: isGoogleLoading } = useGoogleSignIn();
 
-  const { data: session, isPending } = authClient.useSession();
+  const { data: session, isPending } = authClient.useSession() as {
+    data: FullSessionType | null;
+    isPending: boolean;
+  };
 
-  const passwordForm = useForm<z.infer<typeof passwordSchema>>({
+  const passwordForm = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordSchema),
     defaultValues: {
       currentPassword: "",
@@ -190,33 +283,35 @@ export default function ProfilePage() {
     },
   });
 
-  const profileForm = useForm<z.infer<typeof profileSchema>>({
+  const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      name: session?.user?.name || "",
-      email: session?.user?.email || "",
-      phone: session?.user?.phone || "",
-      bio: session?.user?.bio || "",
-      location: session?.user?.location || "",
-      website: session?.user?.website || "",
+      name: "",
+      email: "",
+      phone: "",
+      dob: "",
+      doj: "",
     },
   });
 
-  // Update form when session loads
-  useState(() => {
+  useEffect(() => {
+    console.log("Session:", session);
     if (session?.user) {
       profileForm.reset({
         name: session.user.name || "",
         email: session.user.email || "",
         phone: session.user.phone || "",
-        bio: session.user.bio || "",
-        location: session.user.location || "",
-        website: session.user.website || "",
+        dob: session.user.dob
+          ? new Date(session.user.dob).toISOString().split("T")[0]
+          : "",
+        doj: session.user.doj
+          ? new Date(session.user.doj).toISOString().split("T")[0]
+          : "",
       });
     }
-  });
+  }, [session, profileForm]);
 
-  async function onPasswordSubmit(values: z.infer<typeof passwordSchema>) {
+  async function onPasswordSubmit(values: PasswordFormValues) {
     const { data, error } = await authClient.changePassword({
       newPassword: values.newPassword,
       currentPassword: values.currentPassword,
@@ -231,32 +326,27 @@ export default function ProfilePage() {
     }
   }
 
-  async function onProfileSubmit(values: z.infer<typeof profileSchema>) {
+  const onProfileSubmit = async (values: ProfileFormValues) => {
     setIsSavingProfile(true);
     try {
-      // TODO: Replace with your actual API endpoint
-      // const response = await fetch('/api/user/profile', {
-      //   method: 'PATCH',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(values),
-      // });
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
+      console.log(values);
+      const { data } = await axios.post("/api/updateUser", values);
       toast.success("Profile updated successfully");
       setIsEditMode(false);
-
-      // TODO: Refresh session data
-      // await authClient.refetchSession();
     } catch (error) {
-      toast.error("Failed to update profile");
+      if (axios.isAxiosError(error)) {
+        toast.error(
+          error.response?.data?.message || "Failed to update profile",
+        );
+      } else {
+        toast.error("Unexpected error occurred");
+      }
     } finally {
       setIsSavingProfile(false);
     }
-  }
+  };
 
-  async function handleImageUpload(file: File) {
+  const handleImageUpload = async (file: File) => {
     setIsImageUploading(true);
     try {
       // TODO: Replace with your actual image upload logic
@@ -279,14 +369,14 @@ export default function ProfilePage() {
     } finally {
       setIsImageUploading(false);
     }
-  }
+  };
 
   const logOut = async () => {
     try {
       await authClient.signOut();
       toast.success("Logged out successfully");
       router.push("/login");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Error signing out");
     }
   };
@@ -296,11 +386,32 @@ export default function ProfilePage() {
       name: session?.user?.name || "",
       email: session?.user?.email || "",
       phone: session?.user?.phone || "",
-      bio: session?.user?.bio || "",
-      location: session?.user?.location || "",
-      website: session?.user?.website || "",
+      dob: session?.user?.dob
+        ? new Date(session.user.dob).toISOString().split("T")[0]
+        : "",
+      doj: session?.user?.doj
+        ? new Date(session.user.doj).toISOString().split("T")[0]
+        : "",
     });
     setIsEditMode(false);
+  };
+
+  const formatDate = (dateString: string | Date) => {
+    return new Date(dateString).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const formatDateTime = (dateString: string | Date) => {
+    return new Date(dateString).toLocaleString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   if (isPending) {
@@ -322,7 +433,7 @@ export default function ProfilePage() {
         <div className="-mt-12 flex flex-col items-center gap-6 rounded-2xl border bg-card p-6 shadow-sm md:-mt-16 md:flex-row md:items-end md:justify-between md:p-8">
           <div className="flex flex-col items-center gap-6 md:flex-row md:items-end">
             <ProfileAvatar
-              session={session}
+              session={session as unknown as FullSessionType}
               onImageUpload={handleImageUpload}
               isUploading={isImageUploading}
             />
@@ -331,12 +442,24 @@ export default function ProfilePage() {
                 <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
                   {session.user.name}
                 </h1>
-                <Badge variant="secondary" className="w-fit">
-                  {session.user.role || "Member"}
-                </Badge>
+                <div className="flex gap-2">
+                  <StatusBadge isActive={session.user.isActive} />
+                  {session.user.emailVerified && (
+                    <Badge
+                      variant="secondary"
+                      className="flex items-center gap-1"
+                    >
+                      <CheckCircle2 className="h-3 w-3" />
+                      Verified
+                    </Badge>
+                  )}
+                </div>
               </div>
               <p className="text-sm text-muted-foreground">
                 {session.user.email}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Member since {formatDate(session.user.createdAt)}
               </p>
             </div>
           </div>
@@ -371,6 +494,12 @@ export default function ProfilePage() {
               >
                 Activity
               </TabsTrigger>
+              <TabsTrigger
+                value="subscription"
+                className="flex-1 border-b-2 border-transparent px-4 py-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none sm:flex-none"
+              >
+                Subscription
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -381,7 +510,7 @@ export default function ProfilePage() {
                 <div>
                   <CardTitle className="text-lg">Profile Information</CardTitle>
                   <CardDescription>
-                    Update your personal details and bio
+                    Update your personal details
                   </CardDescription>
                 </div>
                 {!isEditMode ? (
@@ -422,123 +551,141 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
                 {isEditMode ? (
-                  <Form {...profileForm}>
-                    <form className="space-y-4">
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <FormField
-                          control={profileForm.control}
-                          name="name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Full Name</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  className="dark:border dark:border-neutral-400"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={profileForm.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Email Address</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  type="email"
-                                  className="dark:border dark:border-neutral-400"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={profileForm.control}
-                          name="phone"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Phone Number</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  type="tel"
-                                  placeholder="+1 (555) 000-0000"
-                                  className="dark:border dark:border-neutral-400"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={profileForm.control}
-                          name="location"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Location</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  placeholder="City, Country"
-                                  className="dark:border dark:border-neutral-400"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <FormField
+                  <form
+                    className="space-y-4"
+                    onSubmit={profileForm.handleSubmit(onProfileSubmit)}
+                  >
+                    <div className="grid gap-2 sm:gap-4 sm:grid-cols-2">
+                      <Label htmlFor="name">Full Name</Label>
+                      <Controller
                         control={profileForm.control}
-                        name="website"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Website</FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                type="url"
-                                placeholder="https://example.com"
-                                className="dark:border dark:border-neutral-400"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
+                        name="name"
+                        render={({ field, fieldState: { error } }) => (
+                          <div>
+                            <Input
+                              {...field}
+                              id="name"
+                              className="dark:border dark:border-neutral-400"
+                            />
+                            {error && (
+                              <p
+                                role="alert"
+                                className="text-red-500 text-sm mt-1"
+                              >
+                                {error.message}
+                              </p>
+                            )}
+                          </div>
                         )}
                       />
-
-                      <FormField
+                    </div>
+                    <div className="grid gap-2 sm:gap-4 sm:grid-cols-2">
+                      <Label htmlFor="email">Email Address</Label>
+                      <Controller
                         control={profileForm.control}
-                        name="bio"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Bio</FormLabel>
-                            <FormControl>
-                              <Textarea
-                                {...field}
-                                placeholder="Tell us about yourself..."
-                                className="min-h-[100px] dark:border dark:border-neutral-400"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
+                        name="email"
+                        render={({ field, fieldState: { error } }) => (
+                          <div>
+                            <Input
+                              type="email"
+                              {...field}
+                              id="email"
+                              className="dark:border dark:border-neutral-400"
+                            />
+                            {error && (
+                              <p
+                                role="alert"
+                                className="text-red-500 text-sm mt-1"
+                              >
+                                {error.message}
+                              </p>
+                            )}
+                          </div>
                         )}
                       />
-                    </form>
-                  </Form>
+                    </div>
+                    <div className="grid gap-2 sm:gap-4 sm:grid-cols-2">
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <Controller
+                        control={profileForm.control}
+                        name="phone"
+                        render={({ field, fieldState: { error } }) => (
+                          <div>
+                            <Input
+                              placeholder="91 9999999999"
+                              type="tel"
+                              {...field}
+                              id="phone"
+                              className="dark:border dark:border-neutral-400"
+                            />
+                            {error && (
+                              <p
+                                role="alert"
+                                className="text-red-500 text-sm mt-1"
+                              >
+                                {error.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      />
+                    </div>
+                    <div className="grid gap-2 sm:gap-4 sm:grid-cols-2">
+                      <Label htmlFor="dob">Date of Birth</Label>
+                      <Controller
+                        control={profileForm.control}
+                        name="dob"
+                        render={({ field, fieldState: { error } }) => (
+                          <div>
+                            <Input
+                              type="date"
+                              {...field}
+                              value={field.value || ""}
+                              id="dob"
+                              className="dark:border dark:border-neutral-400"
+                            />
+                            {error && (
+                              <p
+                                role="alert"
+                                className="text-red-500 text-sm mt-1"
+                              >
+                                {error.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      />
+                    </div>
+                    <div className="grid gap-2 sm:gap-4 sm:grid-cols-2">
+                      <Label htmlFor="doj">Date of Joining</Label>
+                      <Controller
+                        control={profileForm.control}
+                        name="doj"
+                        render={({ field, fieldState: { error } }) => (
+                          <div>
+                            <Input
+                              type="date"
+                              {...field}
+                              value={field.value || ""}
+                              id="doj"
+                              className="dark:border dark:border-neutral-400"
+                            />
+                            {error && (
+                              <p
+                                role="alert"
+                                className="text-red-500 text-sm mt-1"
+                              >
+                                {error.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      />
+                    </div>
+                  </form>
                 ) : (
                   <div className="space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-2 sm:gap-4 sm:grid-cols-2">
                       <DetailItem
                         label="Full Name"
                         value={session.user.name}
@@ -555,40 +702,81 @@ export default function ProfilePage() {
                         icon={Phone}
                       />
                       <DetailItem
-                        label="Location"
-                        value={session.user.location || "Not set"}
-                        icon={MapPin}
+                        label="Date of Birth"
+                        value={
+                          session.user.dob
+                            ? formatDate(session.user.dob)
+                            : "Not set"
+                        }
+                        icon={Calendar}
+                      />
+                      <DetailItem
+                        label="Date of Joing"
+                        value={
+                          session.user.doj
+                            ? formatDate(session.user.doj)
+                            : "Not set"
+                        }
+                        icon={Calendar}
                       />
                     </div>
-
-                    {session.user.website && (
-                      <DetailItem
-                        label="Website"
-                        value={session.user.website}
-                        icon={Globe}
-                      />
-                    )}
-
-                    {session.user.bio && (
-                      <div className="rounded-xl border bg-card p-4 shadow-sm">
-                        <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                          Bio
-                        </p>
-                        <p className="text-sm text-foreground">
-                          {session.user.bio}
-                        </p>
-                      </div>
-                    )}
                   </div>
                 )}
               </CardContent>
             </Card>
 
+            {/* Account Information */}
+            <Card>
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-lg">Account Information</CardTitle>
+                <CardDescription>
+                  Your account details and timestamps
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <DetailItem
+                    label="Account Status"
+                    value={session.user.isActive ? "Active" : "Inactive"}
+                    icon={session.user.isActive ? CheckCircle2 : XCircle}
+                  />
+                  <DetailItem
+                    label="Email Verified"
+                    value={session.user.emailVerified ? "Yes" : "No"}
+                    icon={session.user.emailVerified ? CheckCircle2 : XCircle}
+                  />
+                  <DetailItem
+                    label="Created At"
+                    value={formatDate(session.user.createdAt)}
+                    icon={Calendar}
+                  />
+                  <DetailItem
+                    label="Last Updated"
+                    value={formatDate(session.user.updatedAt)}
+                    icon={Clock}
+                  />
+                  <DetailItem
+                    label="Last Login"
+                    value={lastMethod || "N/A"}
+                    icon={Clock}
+                  />
+                  {session.user.doj && (
+                    <DetailItem
+                      label="Date of Joining"
+                      value={formatDate(session.user.doj)}
+                      icon={Calendar}
+                    />
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Social Connections */}
             <Card>
               <CardHeader className="p-4 sm:p-6">
                 <CardTitle className="text-lg">Social Connections</CardTitle>
                 <CardDescription>
-                  Link your third-party accounts.
+                  Link your third-party accounts
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
@@ -628,7 +816,7 @@ export default function ProfilePage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="security" className="mt-6">
+          <TabsContent value="security" className="mt-6 space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Authentication</CardTitle>
@@ -638,7 +826,7 @@ export default function ProfilePage() {
                   <div>
                     <p className="text-sm font-semibold">Update Password</p>
                     <p className="text-xs text-muted-foreground">
-                      Last changed 3 months ago
+                      Keep your account secure
                     </p>
                   </div>
                   <Dialog
@@ -659,72 +847,100 @@ export default function ProfilePage() {
                         </DialogDescription>
                       </DialogHeader>
 
-                      <Form {...passwordForm}>
-                        <form
-                          onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}
-                          className="space-y-4"
-                        >
-                          <FormField
-                            control={passwordForm.control}
-                            name="currentPassword"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Current Password</FormLabel>
-                                <FormControl>
+                      <form
+                        onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}
+                        className="space-y-4"
+                      >
+                        <div className="space-y-4 ">
+                          <div className="gap-2 grid">
+                            <Label htmlFor="currentPassword">
+                              Current Password
+                            </Label>
+                            <Controller
+                              control={passwordForm.control}
+                              name="currentPassword"
+                              render={({ field, fieldState: { error } }) => (
+                                <div>
                                   <Input
                                     type="password"
                                     {...field}
+                                    id="currentPassword"
                                     className="dark:border dark:border-neutral-400"
                                   />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                                  {error && (
+                                    <p
+                                      role="alert"
+                                      className="text-red-500 text-sm mt-1"
+                                    >
+                                      {error.message}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            />
+                          </div>
 
-                          <FormField
-                            control={passwordForm.control}
-                            name="newPassword"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>New Password</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="password"
-                                    className="dark:border dark:border-neutral-400"
-                                    {...field}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={passwordForm.control}
-                            name="confirmPassword"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Confirm New Password</FormLabel>
-                                <FormControl>
+                          <div className="gap-2 grid">
+                            <Label htmlFor="newPassword">New Password</Label>
+                            <Controller
+                              control={passwordForm.control}
+                              name="newPassword"
+                              render={({ field, fieldState: { error } }) => (
+                                <div>
                                   <Input
                                     type="password"
                                     {...field}
+                                    id="newPassword"
                                     className="dark:border dark:border-neutral-400"
                                   />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                                  {error && (
+                                    <p
+                                      role="alert"
+                                      className="text-red-500 text-sm mt-1"
+                                    >
+                                      {error.message}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            />
+                          </div>
 
-                          <DialogFooter className="pt-4">
-                            <Button type="submit" className="w-full">
-                              Update Password
-                            </Button>
-                          </DialogFooter>
-                        </form>
-                      </Form>
+                          <div className="gap-2 grid">
+                            <Label htmlFor="confirmPassword">
+                              Confirm New Password
+                            </Label>
+                            <Controller
+                              control={passwordForm.control}
+                              name="confirmPassword"
+                              render={({ field, fieldState: { error } }) => (
+                                <div>
+                                  <Input
+                                    type="password"
+                                    {...field}
+                                    id="confirmPassword"
+                                    className="dark:border dark:border-neutral-400"
+                                  />
+                                  {error && (
+                                    <p
+                                      role="alert"
+                                      className="text-red-500 text-sm mt-1"
+                                    >
+                                      {error.message}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            />
+                          </div>
+                        </div>
+
+                        <DialogFooter className="pt-4">
+                          <Button type="submit" className="w-full">
+                            Update Password
+                          </Button>
+                        </DialogFooter>
+                      </form>
                     </DialogContent>
                   </Dialog>
                 </div>
@@ -740,6 +956,95 @@ export default function ProfilePage() {
                     Coming Soon
                   </Badge>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="activity" className="mt-6 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Session Activity</CardTitle>
+                <CardDescription>Your current session details</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <DetailItem
+                    label="IP Address"
+                    value={session.session.ipAddress}
+                    icon={MapPin}
+                  />
+                  <DetailItem
+                    label="Session Created"
+                    value={formatDateTime(session.session.createdAt)}
+                    icon={Calendar}
+                  />
+                  <DetailItem
+                    label="Last Activity"
+                    value={formatDateTime(session.session.updatedAt)}
+                    icon={Clock}
+                  />
+                  <DetailItem
+                    label="Session Expires"
+                    value={formatDateTime(session.session.expiresAt)}
+                    icon={Clock}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="subscription" className="mt-6 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Subscription Details</CardTitle>
+                <CardDescription>
+                  Manage your subscription and billing
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {session.user.subscriptionType ? (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <DetailItem
+                      label="Subscription Type"
+                      value={session.user.subscriptionType}
+                      icon={Crown}
+                    />
+                    <DetailItem
+                      label="Status"
+                      value={session.user.subscriptionStatus || "N/A"}
+                      icon={
+                        session.user.subscriptionStatus === "active"
+                          ? CheckCircle2
+                          : XCircle
+                      }
+                    />
+                    {session.user.subscriptionStartedAt && (
+                      <DetailItem
+                        label="Started On"
+                        value={formatDate(session.user.subscriptionStartedAt)}
+                        icon={Calendar}
+                      />
+                    )}
+                    {session.user.subscriptionExpiresAt && (
+                      <DetailItem
+                        label="Expires On"
+                        value={formatDate(session.user.subscriptionExpiresAt)}
+                        icon={Calendar}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Crown className="mb-4 h-12 w-12 text-muted-foreground" />
+                    <h3 className="mb-2 text-lg font-semibold">
+                      No Active Subscription
+                    </h3>
+                    <p className="mb-6 text-sm text-muted-foreground">
+                      Upgrade to premium to unlock exclusive features
+                    </p>
+                    <Button>Explore Plans</Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

@@ -36,6 +36,7 @@ export default function BusinessProfileForm({
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Business Logo */}
+
         <div className="grid gap-2">
           <Label className="dark:text-zinc-300">Business Logo</Label>
           <Input

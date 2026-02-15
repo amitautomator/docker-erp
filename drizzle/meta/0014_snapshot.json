@@ -1,6 +1,6 @@
 {
-  "id": "88b45f7b-11ca-49dc-8831-d689567645f7",
-  "prevId": "03e681fd-f507-468f-a4fd-3a817d7164b2",
+  "id": "7641065c-990e-4fe4-b62b-60fca28e1086",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -748,6 +748,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "last_login_method": {
+          "name": "last_login_method",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -841,7 +847,8 @@
       "values": [
         "member",
         "admin",
-        "owner"
+        "owner",
+        "manager"
       ]
     }
   },
