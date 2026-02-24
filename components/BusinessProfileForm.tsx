@@ -30,7 +30,9 @@ export default function BusinessProfileForm({
 
   return (
     <form
-      onSubmit={handleSubmit(onSubmit)}
+      onSubmit={handleSubmit(onSubmit, (errors) =>
+        console.log("Validation errors:", errors),
+      )}
       className="space-y-6 py-4"
       noValidate
     >
@@ -185,16 +187,14 @@ export default function BusinessProfileForm({
         </div>
       </div>
 
-      <DialogFooter>
-        <Button type="submit" disabled={isPending}>
-          {isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-          {isPending
-            ? "Saving..."
-            : isEditing
-              ? "Save Changes"
-              : "Create Profile"}
-        </Button>
-      </DialogFooter>
+      <Button type="submit" disabled={isPending}>
+        {isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+        {isPending
+          ? "Saving..."
+          : isEditing
+            ? "Save Changes"
+            : "Create Profile"}
+      </Button>
     </form>
   );
 }

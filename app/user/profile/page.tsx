@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useForm } from "react-hook-form";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   User,
-  ShieldCheck,
   LogOut,
   Mail,
   Phone,
@@ -129,10 +129,8 @@ const profileSchema = z.object({
     .optional()
     .refine(
       (val) => {
-        if (!val || val === "") return true; // Allow empty
-        // Remove spaces and check if it's a valid Indian phone number
+        if (!val || val === "") return true;
         const cleaned = val.replace(/\s+/g, "");
-        // Accepts formats: 9999999999 or 919999999999 or +919999999999
         return /^(\+91|91)?[6-9]\d{9}$/.test(cleaned);
       },
       {
@@ -145,8 +143,34 @@ const profileSchema = z.object({
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
-
 type PasswordFormValues = z.infer<typeof passwordSchema>;
+
+// --- Animation variants ---
+const tabContentVariants = {
+  hidden: {
+    opacity: 0,
+    y: 10,
+    filter: "blur(4px)",
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: {
+      duration: 0.3,
+      ease: [0.25, 0.46, 0.45, 0.94] as [number, number, number, number],
+    },
+  },
+  exit: {
+    opacity: 0,
+    y: -6,
+    filter: "blur(4px)",
+    transition: {
+      duration: 0.18,
+      ease: "easeIn" as "easeIn",
+    },
+  },
+};
 
 // --- Sub-Components ---
 
@@ -193,8 +217,6 @@ const ProfileAvatar = ({
         ) : (
           <User size={40} className="text-muted-foreground" />
         )}
-
-        {/* Upload Overlay */}
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
@@ -207,7 +229,6 @@ const ProfileAvatar = ({
           )}
         </button>
       </div>
-
       <input
         ref={fileInputRef}
         type="file"
@@ -258,8 +279,21 @@ const StatusBadge = ({ isActive }: { isActive: boolean }) => (
   </Badge>
 );
 
+// Animated wrapper for tab content
+const AnimatedTabContent = ({ children }: { children: React.ReactNode }) => (
+  <motion.div
+    variants={tabContentVariants}
+    initial="hidden"
+    animate="visible"
+    exit="exit"
+  >
+    {children}
+  </motion.div>
+);
+
 export default function ProfilePage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState("general");
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isImageUploading, setIsImageUploading] = useState(false);
@@ -295,7 +329,6 @@ export default function ProfilePage() {
   });
 
   useEffect(() => {
-    console.log("Session:", session);
     if (session?.user) {
       profileForm.reset({
         name: session.user.name || "",
@@ -329,7 +362,6 @@ export default function ProfilePage() {
   const onProfileSubmit = async (values: ProfileFormValues) => {
     setIsSavingProfile(true);
     try {
-      console.log(values);
       const { data } = await axios.post("/api/updateUser", values);
       toast.success("Profile updated successfully");
       setIsEditMode(false);
@@ -349,21 +381,8 @@ export default function ProfilePage() {
   const handleImageUpload = async (file: File) => {
     setIsImageUploading(true);
     try {
-      // TODO: Replace with your actual image upload logic
-      // const formData = new FormData();
-      // formData.append('image', file);
-      // const response = await fetch('/api/user/avatar', {
-      //   method: 'POST',
-      //   body: formData,
-      // });
-
-      // Simulate upload
       await new Promise((resolve) => setTimeout(resolve, 1500));
-
       toast.success("Profile picture updated successfully");
-
-      // TODO: Refresh session
-      // await authClient.refetchSession();
     } catch (error) {
       toast.error("Failed to upload image");
     } finally {
@@ -472,399 +491,102 @@ export default function ProfilePage() {
           </Button>
         </div>
 
-        <Tabs defaultValue="general" className="mt-8">
+        {/* 
+          Key change: We manage `activeTab` ourselves so we can feed it to
+          AnimatePresence as the `key`. The Tabs component stays fully
+          controlled via `value` + `onValueChange`.
+        */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-8">
           {/* Responsive Tabs List */}
           <div className="overflow-x-auto pb-2 scrollbar-hide">
             <TabsList className="flex h-11 w-full justify-start rounded-none border-b bg-transparent p-0 md:justify-center">
-              <TabsTrigger
-                value="general"
-                className="flex-1 border-b-2 border-transparent px-4 py-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none sm:flex-none"
-              >
-                General
-              </TabsTrigger>
-              <TabsTrigger
-                value="security"
-                className="flex-1 border-b-2 border-transparent px-4 py-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none sm:flex-none"
-              >
-                Security
-              </TabsTrigger>
-              <TabsTrigger
-                value="activity"
-                className="flex-1 border-b-2 border-transparent px-4 py-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none sm:flex-none"
-              >
-                Activity
-              </TabsTrigger>
-              <TabsTrigger
-                value="subscription"
-                className="flex-1 border-b-2 border-transparent px-4 py-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none sm:flex-none"
-              >
-                Subscription
-              </TabsTrigger>
+              {["general", "security", "activity", "subscription"].map(
+                (tab) => (
+                  <TabsTrigger
+                    key={tab}
+                    value={tab}
+                    className="flex-1 capitalize border-b-2 border-transparent px-4 py-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none sm:flex-none"
+                  >
+                    {tab}
+                  </TabsTrigger>
+                ),
+              )}
             </TabsList>
           </div>
 
-          <TabsContent value="general" className="mt-6 space-y-6">
-            {/* Edit Profile Section */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between p-4 sm:p-6">
-                <div>
-                  <CardTitle className="text-lg">Profile Information</CardTitle>
-                  <CardDescription>
-                    Update your personal details
-                  </CardDescription>
-                </div>
-                {!isEditMode ? (
-                  <Button
-                    onClick={() => setIsEditMode(true)}
-                    variant="outline"
-                    size="sm"
-                    className="dark:hover:bg-white"
-                  >
-                    <Edit2 className="mr-2 h-4 w-4" />
-                    Edit
-                  </Button>
-                ) : (
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleCancelEdit}
-                      variant="outline"
-                      size="sm"
-                      disabled={isSavingProfile}
-                    >
-                      <X className="mr-2 h-4 w-4" />
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={profileForm.handleSubmit(onProfileSubmit)}
-                      size="sm"
-                      disabled={isSavingProfile}
-                    >
-                      {isSavingProfile ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          {/* AnimatePresence wraps all tab panels; key change triggers exit+enter */}
+          <AnimatePresence mode="wait">
+            {activeTab === "general" && (
+              <TabsContent
+                key="general"
+                value="general"
+                forceMount
+                className="mt-6 space-y-6"
+              >
+                <AnimatedTabContent>
+                  {/* Edit Profile Section */}
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between p-4 sm:p-6">
+                      <div>
+                        <CardTitle className="text-lg">
+                          Profile Information
+                        </CardTitle>
+                        <CardDescription>
+                          Update your personal details
+                        </CardDescription>
+                      </div>
+                      {!isEditMode ? (
+                        <Button
+                          onClick={() => setIsEditMode(true)}
+                          variant="outline"
+                          size="sm"
+                          className="dark:hover:bg-white"
+                        >
+                          <Edit2 className="mr-2 h-4 w-4" />
+                          Edit
+                        </Button>
                       ) : (
-                        <Save className="mr-2 h-4 w-4" />
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={handleCancelEdit}
+                            variant="outline"
+                            size="sm"
+                            disabled={isSavingProfile}
+                          >
+                            <X className="mr-2 h-4 w-4" />
+                            Cancel
+                          </Button>
+                          <Button
+                            onClick={profileForm.handleSubmit(onProfileSubmit)}
+                            size="sm"
+                            disabled={isSavingProfile}
+                          >
+                            {isSavingProfile ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <Save className="mr-2 h-4 w-4" />
+                            )}
+                            Save
+                          </Button>
+                        </div>
                       )}
-                      Save
-                    </Button>
-                  </div>
-                )}
-              </CardHeader>
-              <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-                {isEditMode ? (
-                  <form
-                    className="space-y-4"
-                    onSubmit={profileForm.handleSubmit(onProfileSubmit)}
-                  >
-                    <div className="grid gap-2 sm:gap-4 sm:grid-cols-2">
-                      <Label htmlFor="name">Full Name</Label>
-                      <Controller
-                        control={profileForm.control}
-                        name="name"
-                        render={({ field, fieldState: { error } }) => (
-                          <div>
-                            <Input
-                              {...field}
-                              id="name"
-                              className="dark:border dark:border-neutral-400"
-                            />
-                            {error && (
-                              <p
-                                role="alert"
-                                className="text-red-500 text-sm mt-1"
-                              >
-                                {error.message}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      />
-                    </div>
-                    <div className="grid gap-2 sm:gap-4 sm:grid-cols-2">
-                      <Label htmlFor="email">Email Address</Label>
-                      <Controller
-                        control={profileForm.control}
-                        name="email"
-                        render={({ field, fieldState: { error } }) => (
-                          <div>
-                            <Input
-                              type="email"
-                              {...field}
-                              id="email"
-                              className="dark:border dark:border-neutral-400"
-                            />
-                            {error && (
-                              <p
-                                role="alert"
-                                className="text-red-500 text-sm mt-1"
-                              >
-                                {error.message}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      />
-                    </div>
-                    <div className="grid gap-2 sm:gap-4 sm:grid-cols-2">
-                      <Label htmlFor="phone">Phone Number</Label>
-                      <Controller
-                        control={profileForm.control}
-                        name="phone"
-                        render={({ field, fieldState: { error } }) => (
-                          <div>
-                            <Input
-                              placeholder="91 9999999999"
-                              type="tel"
-                              {...field}
-                              id="phone"
-                              className="dark:border dark:border-neutral-400"
-                            />
-                            {error && (
-                              <p
-                                role="alert"
-                                className="text-red-500 text-sm mt-1"
-                              >
-                                {error.message}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      />
-                    </div>
-                    <div className="grid gap-2 sm:gap-4 sm:grid-cols-2">
-                      <Label htmlFor="dob">Date of Birth</Label>
-                      <Controller
-                        control={profileForm.control}
-                        name="dob"
-                        render={({ field, fieldState: { error } }) => (
-                          <div>
-                            <Input
-                              type="date"
-                              {...field}
-                              value={field.value || ""}
-                              id="dob"
-                              className="dark:border dark:border-neutral-400"
-                            />
-                            {error && (
-                              <p
-                                role="alert"
-                                className="text-red-500 text-sm mt-1"
-                              >
-                                {error.message}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      />
-                    </div>
-                    <div className="grid gap-2 sm:gap-4 sm:grid-cols-2">
-                      <Label htmlFor="doj">Date of Joining</Label>
-                      <Controller
-                        control={profileForm.control}
-                        name="doj"
-                        render={({ field, fieldState: { error } }) => (
-                          <div>
-                            <Input
-                              type="date"
-                              {...field}
-                              value={field.value || ""}
-                              id="doj"
-                              className="dark:border dark:border-neutral-400"
-                            />
-                            {error && (
-                              <p
-                                role="alert"
-                                className="text-red-500 text-sm mt-1"
-                              >
-                                {error.message}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      />
-                    </div>
-                  </form>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid gap-2 sm:gap-4 sm:grid-cols-2">
-                      <DetailItem
-                        label="Full Name"
-                        value={session.user.name}
-                        icon={User}
-                      />
-                      <DetailItem
-                        label="Email Address"
-                        value={session.user.email}
-                        icon={Mail}
-                      />
-                      <DetailItem
-                        label="Phone Number"
-                        value={session.user.phone || "Not set"}
-                        icon={Phone}
-                      />
-                      <DetailItem
-                        label="Date of Birth"
-                        value={
-                          session.user.dob
-                            ? formatDate(session.user.dob)
-                            : "Not set"
-                        }
-                        icon={Calendar}
-                      />
-                      <DetailItem
-                        label="Date of Joing"
-                        value={
-                          session.user.doj
-                            ? formatDate(session.user.doj)
-                            : "Not set"
-                        }
-                        icon={Calendar}
-                      />
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Account Information */}
-            <Card>
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="text-lg">Account Information</CardTitle>
-                <CardDescription>
-                  Your account details and timestamps
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <DetailItem
-                    label="Account Status"
-                    value={session.user.isActive ? "Active" : "Inactive"}
-                    icon={session.user.isActive ? CheckCircle2 : XCircle}
-                  />
-                  <DetailItem
-                    label="Email Verified"
-                    value={session.user.emailVerified ? "Yes" : "No"}
-                    icon={session.user.emailVerified ? CheckCircle2 : XCircle}
-                  />
-                  <DetailItem
-                    label="Created At"
-                    value={formatDate(session.user.createdAt)}
-                    icon={Calendar}
-                  />
-                  <DetailItem
-                    label="Last Updated"
-                    value={formatDate(session.user.updatedAt)}
-                    icon={Clock}
-                  />
-                  <DetailItem
-                    label="Last Login"
-                    value={lastMethod || "N/A"}
-                    icon={Clock}
-                  />
-                  {session.user.doj && (
-                    <DetailItem
-                      label="Date of Joining"
-                      value={formatDate(session.user.doj)}
-                      icon={Calendar}
-                    />
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Social Connections */}
-            <Card>
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="text-lg">Social Connections</CardTitle>
-                <CardDescription>
-                  Link your third-party accounts
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-                <div className="flex flex-col items-center justify-between gap-4 rounded-xl border p-4 sm:flex-row">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 overflow-hidden rounded-full border bg-white p-2">
-                      <Image
-                        src="/google.svg"
-                        alt="Google"
-                        height={24}
-                        width={24}
-                      />
-                    </div>
-                    <div className="text-center sm:text-left">
-                      <p className="text-sm font-bold">Google Account</p>
-                      <p className="text-xs text-muted-foreground">
-                        Quick login enabled
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant={
-                      session.user?.providers?.includes("google")
-                        ? "secondary"
-                        : "default"
-                    }
-                    onClick={handleGoogleSignIn}
-                    disabled={isGoogleLoading}
-                    className="w-full sm:w-auto"
-                  >
-                    {session.user?.providers?.includes("google")
-                      ? "Linked"
-                      : "Connect"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="security" className="mt-6 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Authentication</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                  <div>
-                    <p className="text-sm font-semibold">Update Password</p>
-                    <p className="text-xs text-muted-foreground">
-                      Keep your account secure
-                    </p>
-                  </div>
-                  <Dialog
-                    open={isPasswordDialogOpen}
-                    onOpenChange={setIsPasswordDialogOpen}
-                  >
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="dark:hover:bg-white">
-                        Change Password
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px]">
-                      <DialogHeader>
-                        <DialogTitle>Change Password</DialogTitle>
-                        <DialogDescription>
-                          Password must be at least 8 characters and include
-                          uppercase, lowercase, numbers, and symbols.
-                        </DialogDescription>
-                      </DialogHeader>
-
-                      <form
-                        onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}
-                        className="space-y-4"
-                      >
-                        <div className="space-y-4 ">
-                          <div className="gap-2 grid">
-                            <Label htmlFor="currentPassword">
-                              Current Password
-                            </Label>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                      {isEditMode ? (
+                        <form
+                          className="space-y-4"
+                          onSubmit={profileForm.handleSubmit(onProfileSubmit)}
+                        >
+                          <div className="grid gap-2 sm:gap-4 sm:grid-cols-2">
+                            <Label htmlFor="name">Full Name</Label>
                             <Controller
-                              control={passwordForm.control}
-                              name="currentPassword"
+                              control={profileForm.control}
+                              name="name"
                               render={({ field, fieldState: { error } }) => (
                                 <div>
                                   <Input
-                                    type="password"
                                     {...field}
-                                    id="currentPassword"
+                                    id="name"
                                     className="dark:border dark:border-neutral-400"
                                   />
                                   {error && (
@@ -879,18 +601,18 @@ export default function ProfilePage() {
                               )}
                             />
                           </div>
-
-                          <div className="gap-2 grid">
-                            <Label htmlFor="newPassword">New Password</Label>
+                          <div className="grid gap-2 sm:gap-4 sm:grid-cols-2">
+                            <Label htmlFor="phone">Phone Number</Label>
                             <Controller
-                              control={passwordForm.control}
-                              name="newPassword"
+                              control={profileForm.control}
+                              name="phone"
                               render={({ field, fieldState: { error } }) => (
                                 <div>
                                   <Input
-                                    type="password"
+                                    placeholder="91 9999999999"
+                                    type="tel"
                                     {...field}
-                                    id="newPassword"
+                                    id="phone"
                                     className="dark:border dark:border-neutral-400"
                                   />
                                   {error && (
@@ -905,20 +627,18 @@ export default function ProfilePage() {
                               )}
                             />
                           </div>
-
-                          <div className="gap-2 grid">
-                            <Label htmlFor="confirmPassword">
-                              Confirm New Password
-                            </Label>
+                          <div className="grid gap-2 sm:gap-4 sm:grid-cols-2">
+                            <Label htmlFor="dob">Date of Birth</Label>
                             <Controller
-                              control={passwordForm.control}
-                              name="confirmPassword"
+                              control={profileForm.control}
+                              name="dob"
                               render={({ field, fieldState: { error } }) => (
                                 <div>
                                   <Input
-                                    type="password"
+                                    type="date"
                                     {...field}
-                                    id="confirmPassword"
+                                    value={field.value || ""}
+                                    id="dob"
                                     className="dark:border dark:border-neutral-400"
                                   />
                                   {error && (
@@ -931,123 +651,459 @@ export default function ProfilePage() {
                                   )}
                                 </div>
                               )}
+                            />
+                          </div>
+                          <div className="grid gap-2 sm:gap-4 sm:grid-cols-2">
+                            <Label htmlFor="doj">Date of Joining</Label>
+                            <Controller
+                              control={profileForm.control}
+                              name="doj"
+                              render={({ field, fieldState: { error } }) => (
+                                <div>
+                                  <Input
+                                    type="date"
+                                    {...field}
+                                    value={field.value || ""}
+                                    id="doj"
+                                    className="dark:border dark:border-neutral-400"
+                                  />
+                                  {error && (
+                                    <p
+                                      role="alert"
+                                      className="text-red-500 text-sm mt-1"
+                                    >
+                                      {error.message}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            />
+                          </div>
+                        </form>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="grid gap-2 sm:gap-4 sm:grid-cols-2">
+                            <DetailItem
+                              label="Full Name"
+                              value={session.user.name}
+                              icon={User}
+                            />
+                            <DetailItem
+                              label="Email Address"
+                              value={session.user.email}
+                              icon={Mail}
+                            />
+                            <DetailItem
+                              label="Phone Number"
+                              value={session.user.phone || "Not set"}
+                              icon={Phone}
+                            />
+                            <DetailItem
+                              label="Date of Birth"
+                              value={
+                                session.user.dob
+                                  ? formatDate(session.user.dob)
+                                  : "Not set"
+                              }
+                              icon={Calendar}
+                            />
+                            <DetailItem
+                              label="Date of Joining"
+                              value={
+                                session.user.doj
+                                  ? formatDate(session.user.doj)
+                                  : "Not set"
+                              }
+                              icon={Calendar}
                             />
                           </div>
                         </div>
+                      )}
+                    </CardContent>
+                  </Card>
 
-                        <DialogFooter className="pt-4">
-                          <Button type="submit" className="w-full">
+                  {/* Account Information */}
+                  <Card>
+                    <CardHeader className="p-4 sm:p-6">
+                      <CardTitle className="text-lg">
+                        Account Information
+                      </CardTitle>
+                      <CardDescription>
+                        Your account details and timestamps
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <DetailItem
+                          label="Account Status"
+                          value={session.user.isActive ? "Active" : "Inactive"}
+                          icon={session.user.isActive ? CheckCircle2 : XCircle}
+                        />
+                        <DetailItem
+                          label="Email Verified"
+                          value={session.user.emailVerified ? "Yes" : "No"}
+                          icon={
+                            session.user.emailVerified ? CheckCircle2 : XCircle
+                          }
+                        />
+                        <DetailItem
+                          label="Created At"
+                          value={formatDate(session.user.createdAt)}
+                          icon={Calendar}
+                        />
+                        <DetailItem
+                          label="Last Updated"
+                          value={formatDate(session.user.updatedAt)}
+                          icon={Clock}
+                        />
+                        <DetailItem
+                          label="Last Login"
+                          value={lastMethod || "N/A"}
+                          icon={Clock}
+                        />
+                        {session.user.doj && (
+                          <DetailItem
+                            label="Date of Joining"
+                            value={formatDate(session.user.doj)}
+                            icon={Calendar}
+                          />
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Social Connections */}
+                  <Card>
+                    <CardHeader className="p-4 sm:p-6">
+                      <CardTitle className="text-lg">
+                        Social Connections
+                      </CardTitle>
+                      <CardDescription>
+                        Link your third-party accounts
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                      <div className="flex flex-col items-center justify-between gap-4 rounded-xl border p-4 sm:flex-row">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 overflow-hidden rounded-full border bg-white p-2">
+                            <Image
+                              src="/google.svg"
+                              alt="Google"
+                              height={24}
+                              width={24}
+                            />
+                          </div>
+                          <div className="text-center sm:text-left">
+                            <p className="text-sm font-bold">Google Account</p>
+                            <p className="text-xs text-muted-foreground">
+                              Quick login enabled
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant={
+                            session.user?.providers?.includes("google")
+                              ? "secondary"
+                              : "default"
+                          }
+                          onClick={handleGoogleSignIn}
+                          disabled={isGoogleLoading}
+                          className="w-full sm:w-auto"
+                        >
+                          {session.user?.providers?.includes("google")
+                            ? "Linked"
+                            : "Connect"}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </AnimatedTabContent>
+              </TabsContent>
+            )}
+
+            {activeTab === "security" && (
+              <TabsContent
+                key="security"
+                value="security"
+                forceMount
+                className="mt-6 space-y-6"
+              >
+                <AnimatedTabContent>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Authentication</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                        <div>
+                          <p className="text-sm font-semibold">
                             Update Password
-                          </Button>
-                        </DialogFooter>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-                <Separator />
-                <div className="flex flex-col justify-between gap-4 opacity-50 sm:flex-row sm:items-center">
-                  <div>
-                    <p className="text-sm font-semibold">Two-Factor Auth</p>
-                    <p className="text-xs text-muted-foreground">
-                      Secure your account with 2FA
-                    </p>
-                  </div>
-                  <Badge variant="outline" className="w-fit">
-                    Coming Soon
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Keep your account secure
+                          </p>
+                        </div>
+                        <Dialog
+                          open={isPasswordDialogOpen}
+                          onOpenChange={setIsPasswordDialogOpen}
+                        >
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="dark:hover:bg-white"
+                            >
+                              Change Password
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                              <DialogTitle>Change Password</DialogTitle>
+                              <DialogDescription>
+                                Password must be at least 8 characters and
+                                include uppercase, lowercase, numbers, and
+                                symbols.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <form
+                              onSubmit={passwordForm.handleSubmit(
+                                onPasswordSubmit,
+                              )}
+                              className="space-y-4"
+                            >
+                              <div className="space-y-4">
+                                <div className="gap-2 grid">
+                                  <Label htmlFor="currentPassword">
+                                    Current Password
+                                  </Label>
+                                  <Controller
+                                    control={passwordForm.control}
+                                    name="currentPassword"
+                                    render={({
+                                      field,
+                                      fieldState: { error },
+                                    }) => (
+                                      <div>
+                                        <Input
+                                          type="password"
+                                          {...field}
+                                          id="currentPassword"
+                                          className="dark:border dark:border-neutral-400"
+                                        />
+                                        {error && (
+                                          <p
+                                            role="alert"
+                                            className="text-red-500 text-sm mt-1"
+                                          >
+                                            {error.message}
+                                          </p>
+                                        )}
+                                      </div>
+                                    )}
+                                  />
+                                </div>
+                                <div className="gap-2 grid">
+                                  <Label htmlFor="newPassword">
+                                    New Password
+                                  </Label>
+                                  <Controller
+                                    control={passwordForm.control}
+                                    name="newPassword"
+                                    render={({
+                                      field,
+                                      fieldState: { error },
+                                    }) => (
+                                      <div>
+                                        <Input
+                                          type="password"
+                                          {...field}
+                                          id="newPassword"
+                                          className="dark:border dark:border-neutral-400"
+                                        />
+                                        {error && (
+                                          <p
+                                            role="alert"
+                                            className="text-red-500 text-sm mt-1"
+                                          >
+                                            {error.message}
+                                          </p>
+                                        )}
+                                      </div>
+                                    )}
+                                  />
+                                </div>
+                                <div className="gap-2 grid">
+                                  <Label htmlFor="confirmPassword">
+                                    Confirm New Password
+                                  </Label>
+                                  <Controller
+                                    control={passwordForm.control}
+                                    name="confirmPassword"
+                                    render={({
+                                      field,
+                                      fieldState: { error },
+                                    }) => (
+                                      <div>
+                                        <Input
+                                          type="password"
+                                          {...field}
+                                          id="confirmPassword"
+                                          className="dark:border dark:border-neutral-400"
+                                        />
+                                        {error && (
+                                          <p
+                                            role="alert"
+                                            className="text-red-500 text-sm mt-1"
+                                          >
+                                            {error.message}
+                                          </p>
+                                        )}
+                                      </div>
+                                    )}
+                                  />
+                                </div>
+                              </div>
+                              <DialogFooter className="pt-4">
+                                <Button type="submit" className="w-full">
+                                  Update Password
+                                </Button>
+                              </DialogFooter>
+                            </form>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                      <Separator />
+                      <div className="flex flex-col justify-between gap-4 opacity-50 sm:flex-row sm:items-center">
+                        <div>
+                          <p className="text-sm font-semibold">
+                            Two-Factor Auth
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Secure your account with 2FA
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="w-fit">
+                          Coming Soon
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </AnimatedTabContent>
+              </TabsContent>
+            )}
 
-          <TabsContent value="activity" className="mt-6 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Session Activity</CardTitle>
-                <CardDescription>Your current session details</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <DetailItem
-                    label="IP Address"
-                    value={session.session.ipAddress}
-                    icon={MapPin}
-                  />
-                  <DetailItem
-                    label="Session Created"
-                    value={formatDateTime(session.session.createdAt)}
-                    icon={Calendar}
-                  />
-                  <DetailItem
-                    label="Last Activity"
-                    value={formatDateTime(session.session.updatedAt)}
-                    icon={Clock}
-                  />
-                  <DetailItem
-                    label="Session Expires"
-                    value={formatDateTime(session.session.expiresAt)}
-                    icon={Clock}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+            {activeTab === "activity" && (
+              <TabsContent
+                key="activity"
+                value="activity"
+                forceMount
+                className="mt-6 space-y-6"
+              >
+                <AnimatedTabContent>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Session Activity</CardTitle>
+                      <CardDescription>
+                        Your current session details
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <DetailItem
+                          label="IP Address"
+                          value={session.session.ipAddress}
+                          icon={MapPin}
+                        />
+                        <DetailItem
+                          label="Session Created"
+                          value={formatDateTime(session.session.createdAt)}
+                          icon={Calendar}
+                        />
+                        <DetailItem
+                          label="Last Activity"
+                          value={formatDateTime(session.session.updatedAt)}
+                          icon={Clock}
+                        />
+                        <DetailItem
+                          label="Session Expires"
+                          value={formatDateTime(session.session.expiresAt)}
+                          icon={Clock}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </AnimatedTabContent>
+              </TabsContent>
+            )}
 
-          <TabsContent value="subscription" className="mt-6 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Subscription Details</CardTitle>
-                <CardDescription>
-                  Manage your subscription and billing
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {session.user.subscriptionType ? (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <DetailItem
-                      label="Subscription Type"
-                      value={session.user.subscriptionType}
-                      icon={Crown}
-                    />
-                    <DetailItem
-                      label="Status"
-                      value={session.user.subscriptionStatus || "N/A"}
-                      icon={
-                        session.user.subscriptionStatus === "active"
-                          ? CheckCircle2
-                          : XCircle
-                      }
-                    />
-                    {session.user.subscriptionStartedAt && (
-                      <DetailItem
-                        label="Started On"
-                        value={formatDate(session.user.subscriptionStartedAt)}
-                        icon={Calendar}
-                      />
-                    )}
-                    {session.user.subscriptionExpiresAt && (
-                      <DetailItem
-                        label="Expires On"
-                        value={formatDate(session.user.subscriptionExpiresAt)}
-                        icon={Calendar}
-                      />
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <Crown className="mb-4 h-12 w-12 text-muted-foreground" />
-                    <h3 className="mb-2 text-lg font-semibold">
-                      No Active Subscription
-                    </h3>
-                    <p className="mb-6 text-sm text-muted-foreground">
-                      Upgrade to premium to unlock exclusive features
-                    </p>
-                    <Button>Explore Plans</Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+            {activeTab === "subscription" && (
+              <TabsContent
+                key="subscription"
+                value="subscription"
+                forceMount
+                className="mt-6 space-y-6"
+              >
+                <AnimatedTabContent>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Subscription Details</CardTitle>
+                      <CardDescription>
+                        Manage your subscription and billing
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {session.user.subscriptionType ? (
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <DetailItem
+                            label="Subscription Type"
+                            value={session.user.subscriptionType}
+                            icon={Crown}
+                          />
+                          <DetailItem
+                            label="Status"
+                            value={session.user.subscriptionStatus || "N/A"}
+                            icon={
+                              session.user.subscriptionStatus === "active"
+                                ? CheckCircle2
+                                : XCircle
+                            }
+                          />
+                          {session.user.subscriptionStartedAt && (
+                            <DetailItem
+                              label="Started On"
+                              value={formatDate(
+                                session.user.subscriptionStartedAt,
+                              )}
+                              icon={Calendar}
+                            />
+                          )}
+                          {session.user.subscriptionExpiresAt && (
+                            <DetailItem
+                              label="Expires On"
+                              value={formatDate(
+                                session.user.subscriptionExpiresAt,
+                              )}
+                              icon={Calendar}
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                          <Crown className="mb-4 h-12 w-12 text-muted-foreground" />
+                          <h3 className="mb-2 text-lg font-semibold">
+                            No Active Subscription
+                          </h3>
+                          <p className="mb-6 text-sm text-muted-foreground">
+                            Upgrade to premium to unlock exclusive features
+                          </p>
+                          <Button>Explore Plans</Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </AnimatedTabContent>
+              </TabsContent>
+            )}
+          </AnimatePresence>
         </Tabs>
       </div>
     </div>

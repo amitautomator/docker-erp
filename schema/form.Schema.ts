@@ -1,6 +1,4 @@
 import { z } from "zod";
-import { id } from "zod/v4/locales";
-
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export const ACCEPTED_IMAGE_TYPES = [
@@ -30,16 +28,11 @@ export const formSchema = z.object({
     .min(2, { message: "Business name must be at least 2 characters" })
     .max(100, { message: "Business name must be less than 100 characters" })
     .trim(),
-  team_size: z
-    .union([z.number(), z.string()])
-    .transform((val) => (typeof val === "string" ? parseInt(val, 10) : val))
-    .pipe(
-      z
-        .number({ message: "Team size must be a whole number" })
-        .int()
-        .min(1, { message: "Team size must be at least 1" })
-        .max(100000, { message: "Team size seems unrealistic" }),
-    ),
+  team_size: z.coerce
+    .number({ message: "Team size must be a whole number" })
+    .int()
+    .min(1, { message: "Team size must be at least 1" })
+    .max(100000, { message: "Team size seems unrealistic" }),
   business_address: z
     .string()
     .min(5, { message: "Address must be at least 5 characters" })
@@ -73,6 +66,9 @@ export const formSchema = z.object({
     )
     .optional()
     .transform((val) => val || ""),
-  logo: z.string().optional(),
+  logo: z
+    .string()
+    .nullish()
+    .transform((val) => val ?? ""),
   id: z.string().optional(),
 });

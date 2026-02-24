@@ -5,106 +5,22 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1767996598735,
-      "tag": "0000_regular_iceman",
+      "when": 1771680264338,
+      "tag": "0000_handy_rick_jones",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1767997823038,
-      "tag": "0001_married_killraven",
+      "when": 1771829893683,
+      "tag": "0001_long_marten_broadcloak",
       "breakpoints": true
     },
     {
       "idx": 2,
       "version": "7",
-      "when": 1767997869509,
-      "tag": "0002_closed_roulette",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1768425226410,
-      "tag": "0003_magical_norrin_radd",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1768425538499,
-      "tag": "0004_sad_sue_storm",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1768426835354,
-      "tag": "0005_left_lord_tyger",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1768427363340,
-      "tag": "0006_thankful_harpoon",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1769261453038,
-      "tag": "0007_dry_slyde",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1769262658610,
-      "tag": "0008_dear_lilith",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1769264230524,
-      "tag": "0009_acoustic_annihilus",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1769286747838,
-      "tag": "0010_lying_nextwave",
-      "breakpoints": true
-    },
-    {
-      "idx": 11,
-      "version": "7",
-      "when": 1770153102171,
-      "tag": "0011_majestic_mister_fear",
-      "breakpoints": true
-    },
-    {
-      "idx": 12,
-      "version": "7",
-      "when": 1770673483251,
-      "tag": "0012_wealthy_nova",
-      "breakpoints": true
-    },
-    {
-      "idx": 13,
-      "version": "7",
-      "when": 1770673516221,
-      "tag": "0013_swift_edwin_jarvis",
-      "breakpoints": true
-    },
-    {
-      "idx": 14,
-      "version": "7",
-      "when": 1770675767939,
-      "tag": "0014_steep_morlocks",
+      "when": 1771830388875,
+      "tag": "0002_lying_iron_man",
       "breakpoints": true
     }
   ]

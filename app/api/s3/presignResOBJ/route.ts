@@ -27,6 +27,7 @@ export async function POST(req: Request) {
     if (!fileName || !fileType) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
+
     if (fileSize > maxSize) {
       return NextResponse.json(
         { error: "File size must be less than 10MB" },
@@ -41,9 +42,8 @@ export async function POST(req: Request) {
 
     const fileId = uuidv4();
 
-    const safeFileName = fileName.toLowerCase().replace(/[^a-z0-9.\-_]/g, "");
-
-    const newFileName = `business-logos/${fileId}-${safeFileName}`;
+    const extension = fileType.split("/")[1]; // png, jpeg, webp
+    const newFileName = `business-logos/${uuidv4()}.${extension}`;
 
     const command = new PutObjectCommand({
       Bucket: process.env.AWS_S3_BUCKET_NAME!,

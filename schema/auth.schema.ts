@@ -22,7 +22,7 @@ export const signupSchema = z.object({
     .max(20, "Password must be less than 20 characters")
     .regex(
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/,
-      "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)"
+      "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)",
     ),
 });
 
@@ -36,7 +36,7 @@ export const loginSchema = z.object({
     .max(20, "Password must be less than 20 characters")
     .regex(
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/,
-      "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)"
+      "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)",
     ),
   rememberMe: z.boolean().optional(),
 });

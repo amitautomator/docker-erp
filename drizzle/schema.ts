@@ -10,10 +10,23 @@ import {
   pgEnum,
   integer,
   jsonb,
+  varchar,
+  serial,
 } from "drizzle-orm/pg-core";
 
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
 export const roleEnum = pgEnum("role", ["member", "admin", "owner", "manager"]);
-// Users Table
+
+export const userStatusEnum = pgEnum("user_status", [
+  "active",
+  "inactive",
+  "suspended",
+  "pending",
+]);
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -34,7 +47,7 @@ export const users = pgTable("users", {
   dob: date("dob"),
   doj: date("doj"),
   isActive: boolean("is_active").default(true),
-  status: text("status"),
+  status: userStatusEnum("status"), // was untyped text — now enum-validated
   transferDate: timestamp("transfer_date", { withTimezone: true }),
   transferReason: text("transfer_reason"),
   subscriptionType: text("subscription_type"),
@@ -48,7 +61,8 @@ export const users = pgTable("users", {
   lastLoginMethod: text("last_login_method"),
 });
 
-// Session Table
+// ─── Session ──────────────────────────────────────────────────────────────────
+
 export const session = pgTable(
   "session",
   {
@@ -67,7 +81,6 @@ export const session = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    activeOrganizationId: text("active_organization_id"),
     impersonatedBy: text("impersonated_by"),
   },
   (table) => ({
@@ -75,7 +88,8 @@ export const session = pgTable(
   }),
 );
 
-// Account Table
+// ─── Account ──────────────────────────────────────────────────────────────────
+
 export const account = pgTable(
   "account",
   {
@@ -110,7 +124,8 @@ export const account = pgTable(
   }),
 );
 
-// Verification Table
+// ─── Verification ─────────────────────────────────────────────────────────────
+
 export const verification = pgTable(
   "verification",
   {
@@ -131,7 +146,8 @@ export const verification = pgTable(
   }),
 );
 
-// Organization Table
+// ─── Organization ─────────────────────────────────────────────────────────────
+
 export const organization = pgTable("organization", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -155,7 +171,8 @@ export const organization = pgTable("organization", {
   metadata: jsonb("metadata"),
 });
 
-// Member Table
+// ─── Member ───────────────────────────────────────────────────────────────────
+
 export const member = pgTable(
   "member",
   {
@@ -180,7 +197,8 @@ export const member = pgTable(
   }),
 );
 
-// Invitation Table
+// ─── Invitation ───────────────────────────────────────────────────────────────
+
 export const invitation = pgTable(
   "invitation",
   {
@@ -208,7 +226,89 @@ export const invitation = pgTable(
   }),
 );
 
-// Relations
+// ─── General Setting ──────────────────────────────────────────────────────────
+
+export const generalSetting = pgTable("general_setting", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .unique()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  billing_name: varchar("billing_name", { length: 255 }).notNull(),
+  billing_email: varchar("billing_email", { length: 255 }).notNull(),
+  billing_address: text("billing_address").notNull(),
+  billing_phone: varchar("billing_phone", { length: 20 }),
+  billing_gst: varchar("billing_gst", { length: 50 }),
+  billing_logo: text("billing_logo"),
+  billing_city: varchar("billing_city", { length: 100 }),
+  billing_state: varchar("billing_state", { length: 100 }),
+  billing_country: varchar("billing_country", { length: 100 }),
+  billing_pincode: varchar("billing_pincode", { length: 20 }),
+  billing_currency: varchar("billing_currency", { length: 10 }),
+  invoice_prefix: varchar("invoice_prefix", { length: 20 }),
+  // IMPORTANT: Always increment invoice_number transactionally to avoid race conditions:
+  //   db.update(generalSetting)
+  //     .set({ invoice_number: sql`${generalSetting.invoice_number} + 1` })
+  //     .where(eq(generalSetting.organizationId, orgId))
+  //     .returning({ invoice_number: generalSetting.invoice_number })
+  invoice_number: integer("invoice_number").default(1).notNull(),
+  default_dueDays: integer("default_due_days").default(30).notNull(),
+  invoice_terms: text("invoice_terms"),
+  invoice_type: varchar("invoice_type", { length: 50 }),
+  invoice_status: varchar("invoice_status", { length: 50 }),
+  invoice_payment_method: varchar("invoice_payment_method", { length: 50 }),
+  payment_terms: text("payment_terms"),
+  invoice_terms_condition: text("invoice_terms_condition"),
+  payment_status: varchar("payment_status", { length: 50 }),
+  general_tax: integer("general_tax"), // e.g. 18 for 18%
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+// ─── Products ─────────────────────────────────────────────────────────────────
+
+export const products = pgTable(
+  "products",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    sku: text("sku"),
+    price: integer("price").notNull(), // stored in paise/cents; notNull enforced
+    stock: integer("stock").default(0),
+    category: text("category"),
+    isActive: boolean("is_active").default(true).notNull(),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => ({
+    organizationIdIdx: index("products_organization_id_idx").on(
+      table.organizationId,
+    ),
+    skuIdx: index("products_sku_idx").on(table.sku),
+    categoryIdx: index("products_category_idx").on(table.category),
+    orgActiveIdx: index("products_org_active_idx").on(
+      table.organizationId,
+      table.isActive,
+    ),
+  }),
+);
+
+// ─── Relations ────────────────────────────────────────────────────────────────
+
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
@@ -221,6 +321,10 @@ export const sessionRelations = relations(session, ({ one }) => ({
     fields: [session.userId],
     references: [users.id],
   }),
+  member: one(member, {
+    fields: [session.userId],
+    references: [member.userId],
+  }),
 }));
 
 export const accountRelations = relations(account, ({ one }) => ({
@@ -230,10 +334,19 @@ export const accountRelations = relations(account, ({ one }) => ({
   }),
 }));
 
-export const organizationRelations = relations(organization, ({ many }) => ({
-  members: many(member),
-  invitations: many(invitation),
-}));
+export const organizationRelations = relations(
+  organization,
+  ({ many, one }) => ({
+    members: many(member),
+    invitations: many(invitation),
+    products: many(products), // fix: was missing
+    generalSetting: one(generalSetting, {
+      // fix: was missing
+      fields: [organization.id],
+      references: [generalSetting.organizationId],
+    }),
+  }),
+);
 
 export const memberRelations = relations(member, ({ one }) => ({
   organization: one(organization, {
@@ -254,5 +367,19 @@ export const invitationRelations = relations(invitation, ({ one }) => ({
   inviter: one(users, {
     fields: [invitation.inviterId],
     references: [users.id],
+  }),
+}));
+
+export const generalSettingRelations = relations(generalSetting, ({ one }) => ({
+  organization: one(organization, {
+    fields: [generalSetting.organizationId],
+    references: [organization.id],
+  }),
+}));
+
+export const productsRelations = relations(products, ({ one }) => ({
+  organization: one(organization, {
+    fields: [products.organizationId],
+    references: [organization.id],
   }),
 }));

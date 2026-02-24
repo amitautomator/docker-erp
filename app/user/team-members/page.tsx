@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, useLayoutEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { useForm, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -27,13 +27,11 @@ import {
   Pencil,
   Loader2,
 } from "lucide-react";
-
 import { toast } from "sonner";
 import axios from "axios";
-
 import { authClient } from "@/lib/auth-client";
 import DetailBox from "@/components/DetailBox";
-import BusinessProfileForm from "@/components/businessProfile";
+import BusinessProfileForm from "@/components/BusinessProfileForm";
 import { formSchema } from "@/schema/form.Schema";
 import { transformApiDataToFormValues } from "@/lib/utils";
 import InviteForm from "@/components/InviteForm";
@@ -41,75 +39,29 @@ import { fetchOrgData, fetchMembersData } from "@/lib/utils";
 
 import MembersTable, { Member } from "@/components/MemberTable";
 
-function BlankMember() {
-  return (
-    <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-      <CardContent className="p-8">
-        <div className="flex flex-col items-center justify-center text-center space-y-3">
-          <div className="bg-zinc-100 dark:bg-zinc-800 p-3 rounded-full">
-            <Users className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
-          </div>
-          <div>
-            <p className="font-medium text-zinc-900 dark:text-zinc-100">
-              No team members yet
-            </p>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-              Add your first team member to get started
-            </p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 type BusinessProfileValues = z.infer<typeof formSchema>;
 
-const getBusinessDetails = (data: BusinessProfileValues) => [
-  {
-    id: "address",
-    icon: MapPin,
-    label: "Business Address",
-    value: data.business_address,
-  },
-  {
-    id: "email",
-    icon: Mail,
-    label: "Owner Email",
-    value: data.business_email,
-  },
-  {
-    id: "phone",
-    icon: Phone,
-    label: "Contact Number",
-    value: data.business_phone,
-  },
-  {
-    id: "website",
-    icon: Globe,
-    label: "Website",
-    value: data.business_website || "Not provided",
-    isLink: !!data.business_website,
-  },
-  {
-    id: "gst",
-    icon: FileText,
-    label: "GSTIN",
-    value: data.gst || "Not provided",
-  },
-];
+const getKeyFromUrl = (url: string) => {
+  const { pathname } = new URL(url);
+  return pathname.replace(/^\/+/, "");
+};
 
 export default function TeamMemberPage() {
+  //
+  //
+  //
+  //
   const [isLoading, setIsLoading] = useState(true);
   const [membersData, setMembersData] = useState<Member[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [savedData, setSavedData] = useState<BusinessProfileValues | null>(
     null,
   );
+
   const [isUploading, setIsUploading] = useState(false);
   const [memberDialogOpen, setMemberDialogOpen] = useState(false);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const loadData = async () => {
       try {
         const orgData = await fetchOrgData();
@@ -117,7 +69,7 @@ export default function TeamMemberPage() {
           setSavedData(orgData);
           const membersResponse = await fetchMembersData(orgData.id);
           if (membersResponse) {
-            console.log("Fetched members data:", membersResponse.data);
+            // console.log("Fetched members data:", membersResponse.data);
             setMembersData(membersResponse.data);
           }
         }
@@ -132,7 +84,7 @@ export default function TeamMemberPage() {
     loadData();
   }, []);
 
-  const form = useForm({
+  const businessForm = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       businessLogo: undefined,
@@ -144,7 +96,7 @@ export default function TeamMemberPage() {
       business_website: "",
       business_phone: "",
       gst: "",
-      logo: "",
+      logo: undefined,
     },
   }) as UseFormReturn<BusinessProfileValues>;
 
@@ -157,50 +109,57 @@ export default function TeamMemberPage() {
   const onSubmitBusiness = async (values: BusinessProfileValues) => {
     setIsUploading(true);
     try {
-      let uploadedLogo = savedData?.logo || null;
+      // -----------------------------
+      // STEP 1: Handle Logo Upload
+      // -----------------------------
+      let oldLogoKey: string | null = null;
+
+      let uploadedLogo = savedData?.logo || undefined;
+
       if (values.businessLogo && values.businessLogo[0]) {
         const file = values.businessLogo[0];
-        const presignResData = await axios.post("/api/s3/presignedURL", {
+        const presignRes = await axios.post("/api/s3/presignResOBJ", {
           fileName: file.name,
           fileType: file.type,
           fileSize: file.size,
         });
-        const presignResOBJ = presignResData.data;
-        if (!presignResOBJ || !presignResOBJ.uploadUrl) {
-          throw new Error("Failed to get upload URL from server");
+
+        const { uploadUrl, newFileName } = presignRes.data;
+
+        if (!uploadUrl) {
+          throw new Error("Failed to get upload URL");
         }
-        try {
-          await axios.put(presignResOBJ.uploadUrl, file, {
-            headers: {
-              "Content-Type": file.type,
-            },
-          });
-        } catch (s3Error) {
-          console.error("S3 upload error:", s3Error);
-          throw new Error("Failed to upload file to S3. Please try again.");
-        }
-        uploadedLogo = `https://${process.env.NEXT_PUBLIC_CLOUDFRONT_DOMAIN}/${presignResOBJ.newFileName}`;
+
+        await axios.put(uploadUrl, file, {
+          headers: {
+            "Content-Type": file.type,
+          },
+        });
+
+        uploadedLogo = `https://${process.env.NEXT_PUBLIC_CLOUDFRONT_DOMAIN}/${newFileName}`;
       }
-      const normalizedValues = {
-        ...values,
-        slug: values.name
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-+|-+$/g, ""),
-        logo: uploadedLogo,
-      };
+
+      // -----------------------------
+      // STEP 2: Generate Slug
+      // -----------------------------
+      const slug = values.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+
+      // -----------------------------
+      // STEP 3: CREATE FLOW
+      // -----------------------------
       if (!savedData) {
         const { data, error } = await authClient.organization.create({
           name: values.name,
-          slug: normalizedValues.slug,
-          logo: uploadedLogo || undefined,
+          slug,
+          logo: uploadedLogo,
         });
-        if (error) {
-          throw new Error(error.message);
-        }
-        if (!data) {
-          throw new Error("Organization creation failed");
-        }
+
+        if (error) throw new Error(error.message);
+        if (!data) throw new Error("Organization creation failed");
+
         const response = await axios.post("/api/createOrg", {
           ...data,
           business_website: values.business_website,
@@ -211,36 +170,70 @@ export default function TeamMemberPage() {
           team_size: values.team_size,
           gst: values.gst,
         });
+
         if (response.data.error) {
           await authClient.organization.delete({ organizationId: data.id });
-          throw new Error(`ERROR FROM API: ${response.data.error}`);
+          throw new Error(response.data.error);
         }
+
         const transformedData = transformApiDataToFormValues(response.data);
         setSavedData(transformedData);
-        await fetchOrgData();
+
+        businessForm.reset({
+          ...transformedData,
+          businessLogo: undefined,
+        });
+
         toast.success("Business profile created successfully!");
         setIsDialogOpen(false);
-      } else {
-        const response = await axios.put("/api/updateOrg", {
-          business_website: values.business_website,
-          business_type: values.business_type,
-          business_address: values.business_address,
-          business_phone: values.business_phone,
-          business_email: values.business_email,
-          team_size: values.team_size,
-          gst: values.gst,
-          name: values.name,
-          logo: uploadedLogo,
-        });
-        if (response.data.error) {
-          throw new Error(`ERROR FROM API: ${response.data.error}`);
-        }
-        const transformedData = transformApiDataToFormValues(response.data);
-        setSavedData(transformedData);
-        await fetchOrgData();
-        toast.success("Business profile updated successfully!");
-        setIsDialogOpen(false);
+        return;
       }
+
+      if (savedData?.logo) {
+        oldLogoKey = getKeyFromUrl(savedData.logo);
+      }
+
+      // -----------------------------
+      // STEP 4: UPDATE FLOW
+      // -----------------------------
+
+      const response = await axios.put("/api/updateOrg", {
+        name: values.name,
+        logo: uploadedLogo, // keeps old if not changed
+        business_website: values.business_website,
+        business_type: values.business_type,
+        business_address: values.business_address,
+        business_phone: values.business_phone,
+        business_email: values.business_email,
+        team_size: values.team_size,
+        gst: values.gst,
+      });
+
+      if (oldLogoKey) {
+        try {
+          await axios.post("/api/s3/deleteObject", {
+            key: oldLogoKey,
+          });
+        } catch (err) {
+          console.error("Old logo cleanup failed:", err);
+          // Don't throw — update already succeeded
+        }
+      }
+
+      if (response.data.error) {
+        throw new Error(response.data.error);
+      }
+
+      const transformedData = transformApiDataToFormValues(response.data);
+      setSavedData(transformedData);
+
+      businessForm.reset({
+        ...transformedData,
+        businessLogo: undefined,
+      });
+
+      toast.success("Business profile updated successfully!");
+      setIsDialogOpen(false);
     } catch (err) {
       console.error("❌ Upload failed:", err);
       toast.error(err instanceof Error ? err.message : "Upload failed");
@@ -252,7 +245,7 @@ export default function TeamMemberPage() {
   // handle edit button click
   const handleEdit = () => {
     if (savedData) {
-      form.reset(savedData);
+      businessForm.reset(savedData);
     }
     setIsDialogOpen(true);
   };
@@ -261,7 +254,7 @@ export default function TeamMemberPage() {
   const handleDialogClose = (open: boolean) => {
     setIsDialogOpen(open);
     if (!open) {
-      form.clearErrors();
+      businessForm.clearErrors();
     }
   };
 
@@ -412,7 +405,7 @@ export default function TeamMemberPage() {
           </DialogHeader>
 
           <BusinessProfileForm
-            businessForm={form}
+            businessForm={businessForm}
             onSubmit={onSubmitBusiness}
             isPending={isUploading}
             isEditing={!!savedData}
@@ -425,6 +418,7 @@ export default function TeamMemberPage() {
 
 // Extracted Components for better organization
 
+// The EmptyState component is responsible for displaying a user-friendly message and call-to-action when there is no business profile found. It encourages users to create a new business profile by clicking the provided button, which triggers the onCreateClick function passed as a prop.
 interface EmptyStateProps {
   onCreateClick: () => void;
 }
@@ -454,6 +448,8 @@ interface ProfileCardProps {
   logoPreview: string | null | undefined;
   businessDetails: ReturnType<typeof getBusinessDetails>;
 }
+
+// This component is responsible for displaying the business profile information in a card format. It shows the business logo, name, type, team size, and other details in a visually appealing layout. The details are displayed using the DetailBox component, which takes care of rendering each piece of information with its corresponding icon and label.
 
 function BusinessProfileCard({
   savedData,
@@ -510,6 +506,62 @@ function BusinessProfileCard({
           {businessDetails.map((detail) => (
             <DetailBox key={detail.id} {...detail} />
           ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+const getBusinessDetails = (data: BusinessProfileValues) => [
+  {
+    id: "email",
+    icon: Mail,
+    label: "Owner Email",
+    value: data.business_email,
+  },
+  {
+    id: "phone",
+    icon: Phone,
+    label: "Contact Number",
+    value: data.business_phone,
+  },
+  {
+    id: "website",
+    icon: Globe,
+    label: "Website",
+    value: data.business_website || "Not provided",
+    isLink: !!data.business_website,
+  },
+  {
+    id: "address",
+    icon: MapPin,
+    label: "Business Address",
+    value: data.business_address,
+  },
+  {
+    id: "gst",
+    icon: FileText,
+    label: "GSTIN",
+    value: data.gst || "Not provided",
+  },
+];
+
+function BlankMember() {
+  return (
+    <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+      <CardContent className="p-8">
+        <div className="flex flex-col items-center justify-center text-center space-y-3">
+          <div className="bg-zinc-100 dark:bg-zinc-800 p-3 rounded-full">
+            <Users className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
+          </div>
+          <div>
+            <p className="font-medium text-zinc-900 dark:text-zinc-100">
+              No team members yet
+            </p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              Add your first team member to get started
+            </p>
+          </div>
         </div>
       </CardContent>
     </Card>

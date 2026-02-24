@@ -16,6 +16,36 @@ CREATE TABLE "account" (
 	CONSTRAINT "account_provider_id_account_id_unique" UNIQUE("provider_id","account_id")
 );
 --> statement-breakpoint
+CREATE TABLE "general_setting" (
+	"id" text PRIMARY KEY NOT NULL,
+	"organization_id" text NOT NULL,
+	"billing_name" varchar(255) NOT NULL,
+	"billing_email" varchar(255) NOT NULL,
+	"billing_address" text NOT NULL,
+	"billing_phone" varchar(20),
+	"billing_gst" varchar(50),
+	"billing_logo" text,
+	"billing_city" varchar(100),
+	"billing_state" varchar(100),
+	"billing_country" varchar(100),
+	"billing_pincode" varchar(20),
+	"billing_currency" varchar(10),
+	"invoice_prefix" varchar(20),
+	"invoice_number" integer DEFAULT 1 NOT NULL,
+	"default_due_days" integer DEFAULT 30 NOT NULL,
+	"invoice_terms" text,
+	"invoice_type" varchar(50),
+	"invoice_status" varchar(50),
+	"invoice_payment_method" varchar(50),
+	"payment_terms" text,
+	"invoice_terms_condition" text,
+	"payment_status" varchar(50),
+	"general_tax" integer,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "general_setting_organization_id_unique" UNIQUE("organization_id")
+);
+--> statement-breakpoint
 CREATE TABLE "invitation" (
 	"id" text PRIMARY KEY NOT NULL,
 	"organization_id" text NOT NULL,
@@ -53,6 +83,20 @@ CREATE TABLE "organization" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"metadata" jsonb,
 	CONSTRAINT "organization_slug_unique" UNIQUE("slug")
+);
+--> statement-breakpoint
+CREATE TABLE "products" (
+	"id" text PRIMARY KEY NOT NULL,
+	"organization_id" text NOT NULL,
+	"name" text NOT NULL,
+	"sku" text,
+	"price" integer,
+	"stock" integer DEFAULT 0,
+	"category" text,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"metadata" jsonb,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "session" (
@@ -105,10 +149,12 @@ CREATE TABLE "verification" (
 );
 --> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "general_setting" ADD CONSTRAINT "general_setting_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invitation" ADD CONSTRAINT "invitation_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invitation" ADD CONSTRAINT "invitation_inviter_id_users_id_fk" FOREIGN KEY ("inviter_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "member" ADD CONSTRAINT "member_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "member" ADD CONSTRAINT "member_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "products" ADD CONSTRAINT "products_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "account_userId_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "invitation_organizationId_idx" ON "invitation" USING btree ("organization_id");--> statement-breakpoint
@@ -116,5 +162,9 @@ CREATE INDEX "invitation_email_idx" ON "invitation" USING btree ("email");--> st
 CREATE INDEX "invitation_status_idx" ON "invitation" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "member_organizationId_idx" ON "member" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "member_userId_idx" ON "member" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "products_organization_id_idx" ON "products" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX "products_sku_idx" ON "products" USING btree ("sku");--> statement-breakpoint
+CREATE INDEX "products_category_idx" ON "products" USING btree ("category");--> statement-breakpoint
+CREATE INDEX "products_org_active_idx" ON "products" USING btree ("organization_id","is_active");--> statement-breakpoint
 CREATE INDEX "session_token_idx" ON "session" USING btree ("token");--> statement-breakpoint
 CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");

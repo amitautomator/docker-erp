@@ -2,9 +2,15 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 
+/**
+ * Accepts an invitation to join a team.
+ * @param invitationID - The ID of the invitation to accept.
+ * @returns A response indicating success or failure.
+ */
+
 export async function GET(
   request: Request,
-  { params }: { params: { invitationID: string } },
+  { params }: { params: Promise<{ invitationID: string }> },
 ) {
   try {
     const { invitationID } = await params;
