@@ -5,22 +5,15 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1771680264338,
-      "tag": "0000_handy_rick_jones",
+      "when": 1772566637996,
+      "tag": "0000_talented_nekra",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1771829893683,
-      "tag": "0001_long_marten_broadcloak",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1771830388875,
-      "tag": "0002_lying_iron_man",
+      "when": 1774467829870,
+      "tag": "0001_safe_jazinda",
       "breakpoints": true
     }
   ]

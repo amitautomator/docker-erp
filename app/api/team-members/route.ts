@@ -1,6 +1,6 @@
 import { getServerSession } from "@/lib/getServerSession";
 import { db } from "@/drizzle/src/db/db";
-import { member, organization, users } from "@/drizzle/schema";
+import { member } from "@/drizzle/schema";
 import { eq } from "drizzle-orm";
 
 export async function POST(req: Request) {

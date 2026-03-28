@@ -33,6 +33,10 @@ export async function POST(req: Request) {
         business_phone: formData.business_phone,
         business_email: formData.business_email,
         team_size: formData.team_size,
+        business_country: formData.business_country,
+        business_state: formData.business_state,
+        business_city: formData.business_city,
+        business_pincode: formData.business_pincode,
         gst: formData.gst,
       })
       .where(eq(organization.id, formData.id))

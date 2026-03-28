@@ -9,8 +9,6 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-  CardAction,
-  CardFooter,
 } from "../ui/card";
 import { toast } from "sonner";
 import { Label } from "../ui/label";
@@ -21,6 +19,7 @@ import z from "zod";
 import { IconCheck } from "@tabler/icons-react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Textarea } from "../ui/textarea";
 
 const templateSchema = z.object({
   activeTemplate: z.string().min(1, "Template is required"),
@@ -38,7 +37,7 @@ export default function TemplateSetting() {
     register: regTemplate,
     handleSubmit: handleTemplate,
     control: controlTemplate,
-    formState: { errors: templateErrors },
+    formState: { errors: templateErrors, isSubmitting: isTemplateSubmitting },
   } = useForm<TemplateForm>({
     resolver: zodResolver(templateSchema),
     defaultValues: {
@@ -113,15 +112,6 @@ export default function TemplateSetting() {
               </h3>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="logo">Company Logo</Label>
-                  <div className="flex gap-3">
-                    <Input id="logo" type="file" accept="image/*" />
-                    <Button type="button" variant="outline">
-                      Upload
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="primaryColor">Primary Color</Label>
                   <div className="flex gap-3">
                     <Controller
@@ -146,24 +136,55 @@ export default function TemplateSetting() {
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="footerText">Footer Text</Label>
-                  <Input
-                    id="footerText"
-                    placeholder="Footer message"
-                    {...regTemplate("footerText")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="terms">Terms & Conditions</Label>
-                  <textarea
-                    id="terms"
-                    rows={4}
-                    className="w-full rounded-md border border-neutral-200 p-2 text-sm dark:border-neutral-700 dark:bg-neutral-800"
-                    placeholder="Enter your terms and conditions..."
-                    {...regTemplate("terms")}
-                  />
-                </div>
+              </div>
+            </div>
+            {/* Display Options */}
+            <div className="space-y-4 border-t border-neutral-200 pt-6 dark:border-neutral-700">
+              <h3 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
+                Display Options
+              </h3>
+              <div className="space-y-4">
+                {(
+                  [
+                    {
+                      name: "showLogo",
+                      label: "Show Company Logo",
+                      desc: "Display your company logo on invoices",
+                    },
+                    {
+                      name: "showTaxBreakdown",
+                      label: "Show Tax Breakdown",
+                      desc: "Show detailed tax calculation",
+                    },
+                    {
+                      name: "showPaymentInstructions",
+                      label: "Show Payment Instructions",
+                      desc: "Include payment terms and instructions",
+                    },
+                  ] as const
+                ).map((item) => (
+                  <div
+                    key={item.name}
+                    className="flex items-center justify-between"
+                  >
+                    <div>
+                      <Label>{item.label}</Label>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                        {item.desc}
+                      </p>
+                    </div>
+                    {/* <Controller
+                      name={item.name}
+                      control={controlInvoice}
+                      render={({ field }) => (
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      )}
+                    /> */}
+                  </div>
+                ))}
               </div>
             </div>
 

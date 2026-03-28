@@ -72,6 +72,29 @@ services:
     depends_on:
       - redis
 
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nextjs_dev
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3200:3200"
+    environment:
+      - NODE_ENV=production
+      # Connect via PgBouncer (recommended) or direct postgres
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-myapp}
+      - REDIS_URL=redis://redis:6379
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_started
+
 networks:
   backend:
     driver: bridge

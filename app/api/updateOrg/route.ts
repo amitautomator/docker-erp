@@ -29,7 +29,6 @@ export async function PUT(req: Request) {
 
     const organizationId = memberRecord[0].organizationId;
 
-    // 🔹 Fetch current organization data
     const existingOrg = await db
       .select()
       .from(organization)
@@ -48,7 +47,6 @@ export async function PUT(req: Request) {
 
     const updateData: Partial<typeof organization.$inferInsert> = {};
 
-    // 🔥 Only update if value is different
     if (body.name !== undefined && body.name !== currentData.name)
       updateData.name = body.name;
 
@@ -93,6 +91,32 @@ export async function PUT(req: Request) {
 
     if (body.gst !== undefined && body.gst !== currentData.gst)
       updateData.gst = body.gst;
+
+    // ── new location fields ────────────────────────────────────────────────
+    if (
+      body.business_city !== undefined &&
+      body.business_city !== currentData.business_city
+    )
+      updateData.business_city = body.business_city;
+
+    if (
+      body.business_state !== undefined &&
+      body.business_state !== currentData.business_state
+    )
+      updateData.business_state = body.business_state;
+
+    if (
+      body.business_country !== undefined &&
+      body.business_country !== currentData.business_country
+    )
+      updateData.business_country = body.business_country;
+
+    if (
+      body.business_pincode !== undefined &&
+      body.business_pincode !== currentData.business_pincode
+    )
+      updateData.business_pincode = body.business_pincode;
+    // ──────────────────────────────────────────────────────────────────────
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(

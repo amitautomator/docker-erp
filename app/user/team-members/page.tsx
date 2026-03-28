@@ -48,9 +48,13 @@ const getKeyFromUrl = (url: string) => {
 
 export default function TeamMemberPage() {
   //
+
   //
+
   //
+
   //
+
   const [isLoading, setIsLoading] = useState(true);
   const [membersData, setMembersData] = useState<Member[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -95,6 +99,10 @@ export default function TeamMemberPage() {
       business_email: "",
       business_website: "",
       business_phone: "",
+      business_country: "",
+      business_state: "",
+      business_city: "",
+      business_pincode: "",
       gst: "",
       logo: undefined,
     },
@@ -167,6 +175,10 @@ export default function TeamMemberPage() {
           business_address: values.business_address,
           business_phone: values.business_phone,
           business_email: values.business_email,
+          business_country: values.business_country,
+          business_state: values.business_state,
+          business_city: values.business_city,
+          business_pincode: values.business_pincode,
           team_size: values.team_size,
           gst: values.gst,
         });
@@ -205,6 +217,10 @@ export default function TeamMemberPage() {
         business_address: values.business_address,
         business_phone: values.business_phone,
         business_email: values.business_email,
+        business_country: values.business_country,
+        business_state: values.business_state,
+        business_city: values.business_city,
+        business_pincode: values.business_pincode,
         team_size: values.team_size,
         gst: values.gst,
       });
@@ -416,9 +432,6 @@ export default function TeamMemberPage() {
   );
 }
 
-// Extracted Components for better organization
-
-// The EmptyState component is responsible for displaying a user-friendly message and call-to-action when there is no business profile found. It encourages users to create a new business profile by clicking the provided button, which triggers the onCreateClick function passed as a prop.
 interface EmptyStateProps {
   onCreateClick: () => void;
 }
@@ -448,8 +461,6 @@ interface ProfileCardProps {
   logoPreview: string | null | undefined;
   businessDetails: ReturnType<typeof getBusinessDetails>;
 }
-
-// This component is responsible for displaying the business profile information in a card format. It shows the business logo, name, type, team size, and other details in a visually appealing layout. The details are displayed using the DetailBox component, which takes care of rendering each piece of information with its corresponding icon and label.
 
 function BusinessProfileCard({
   savedData,
@@ -543,6 +554,30 @@ const getBusinessDetails = (data: BusinessProfileValues) => [
     icon: FileText,
     label: "GSTIN",
     value: data.gst || "Not provided",
+  },
+  {
+    id: "country",
+    icon: Globe,
+    label: "Country",
+    value: data.business_country || "Not provided",
+  },
+  {
+    id: "state",
+    icon: MapPin,
+    label: "State",
+    value: data.business_state || "Not provided",
+  },
+  {
+    id: "city",
+    icon: MapPin,
+    label: "City",
+    value: data.business_city || "Not provided",
+  },
+  {
+    id: "pincode",
+    icon: FileText,
+    label: "Pincode",
+    value: data.business_pincode || "Not provided",
   },
 ];
 

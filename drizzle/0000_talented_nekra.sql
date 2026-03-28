@@ -1,4 +1,5 @@
 CREATE TYPE "public"."role" AS ENUM('member', 'admin', 'owner', 'manager');--> statement-breakpoint
+CREATE TYPE "public"."user_status" AS ENUM('active', 'inactive', 'suspended', 'pending');--> statement-breakpoint
 CREATE TABLE "account" (
 	"id" text PRIMARY KEY NOT NULL,
 	"account_id" text NOT NULL,
@@ -16,34 +17,12 @@ CREATE TABLE "account" (
 	CONSTRAINT "account_provider_id_account_id_unique" UNIQUE("provider_id","account_id")
 );
 --> statement-breakpoint
-CREATE TABLE "general_setting" (
+CREATE TABLE "document_counters" (
 	"id" text PRIMARY KEY NOT NULL,
 	"organization_id" text NOT NULL,
-	"billing_name" varchar(255) NOT NULL,
-	"billing_email" varchar(255) NOT NULL,
-	"billing_address" text NOT NULL,
-	"billing_phone" varchar(20),
-	"billing_gst" varchar(50),
-	"billing_logo" text,
-	"billing_city" varchar(100),
-	"billing_state" varchar(100),
-	"billing_country" varchar(100),
-	"billing_pincode" varchar(20),
-	"billing_currency" varchar(10),
-	"invoice_prefix" varchar(20),
-	"invoice_number" integer DEFAULT 1 NOT NULL,
-	"default_due_days" integer DEFAULT 30 NOT NULL,
-	"invoice_terms" text,
-	"invoice_type" varchar(50),
-	"invoice_status" varchar(50),
-	"invoice_payment_method" varchar(50),
-	"payment_terms" text,
-	"invoice_terms_condition" text,
-	"payment_status" varchar(50),
-	"general_tax" integer,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "general_setting_organization_id_unique" UNIQUE("organization_id")
+	"type" varchar(50) NOT NULL,
+	"current_number" integer DEFAULT 1 NOT NULL,
+	CONSTRAINT "document_counters_organization_id_type_unique" UNIQUE("organization_id","type")
 );
 --> statement-breakpoint
 CREATE TABLE "invitation" (
@@ -55,6 +34,26 @@ CREATE TABLE "invitation" (
 	"expires_at" timestamp with time zone NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"inviter_id" text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "invoice_setting" (
+	"id" text PRIMARY KEY NOT NULL,
+	"organization_id" text NOT NULL,
+	"invoice_types" jsonb DEFAULT '["invoice","proforma","credit_note","debit_note","quote"]'::jsonb NOT NULL,
+	"prefix" jsonb,
+	"number_padding" jsonb,
+	"default_due_days" jsonb,
+	"status_options" jsonb,
+	"payment_method_options" jsonb,
+	"payment_status_options" jsonb,
+	"show_logo" jsonb,
+	"show_tax_breakdown" jsonb,
+	"show_terms_and_conditions" jsonb,
+	"terms_condition" jsonb,
+	"general_tax" jsonb,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "invoice_setting_organization_id_unique" UNIQUE("organization_id")
 );
 --> statement-breakpoint
 CREATE TABLE "member" (
@@ -76,6 +75,10 @@ CREATE TABLE "organization" (
 	"business_email" text,
 	"business_type" text,
 	"business_address" text,
+	"business_city" text,
+	"business_state" text,
+	"business_country" text,
+	"business_pincode" text,
 	"business_website" text,
 	"gst" text,
 	"is_active" boolean DEFAULT true NOT NULL,
@@ -90,7 +93,7 @@ CREATE TABLE "products" (
 	"organization_id" text NOT NULL,
 	"name" text NOT NULL,
 	"sku" text,
-	"price" integer,
+	"price" integer NOT NULL,
 	"stock" integer DEFAULT 0,
 	"category" text,
 	"is_active" boolean DEFAULT true NOT NULL,
@@ -108,7 +111,6 @@ CREATE TABLE "session" (
 	"ip_address" text,
 	"user_agent" text,
 	"user_id" text NOT NULL,
-	"active_organization_id" text,
 	"impersonated_by" text,
 	CONSTRAINT "session_token_unique" UNIQUE("token")
 );
@@ -128,7 +130,7 @@ CREATE TABLE "users" (
 	"dob" date,
 	"doj" date,
 	"is_active" boolean DEFAULT true,
-	"status" text,
+	"status" "user_status",
 	"transfer_date" timestamp with time zone,
 	"transfer_reason" text,
 	"subscription_type" text,
@@ -149,14 +151,16 @@ CREATE TABLE "verification" (
 );
 --> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "general_setting" ADD CONSTRAINT "general_setting_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "document_counters" ADD CONSTRAINT "document_counters_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invitation" ADD CONSTRAINT "invitation_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invitation" ADD CONSTRAINT "invitation_inviter_id_users_id_fk" FOREIGN KEY ("inviter_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "invoice_setting" ADD CONSTRAINT "invoice_setting_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "member" ADD CONSTRAINT "member_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "member" ADD CONSTRAINT "member_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "products" ADD CONSTRAINT "products_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "account_userId_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "document_counters_org_idx" ON "document_counters" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "invitation_organizationId_idx" ON "invitation" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "invitation_email_idx" ON "invitation" USING btree ("email");--> statement-breakpoint
 CREATE INDEX "invitation_status_idx" ON "invitation" USING btree ("status");--> statement-breakpoint

@@ -52,6 +52,14 @@ export const formSchema = z.object({
     .trim()
     .optional()
     .transform((val) => val || ""),
+  business_country: z.string().min(1, "Country is required"),
+  business_state: z.string().min(1, "State is required"),
+  business_city: z.string().min(1, "City is required"),
+  business_pincode: z
+    .string()
+    .regex(/^\d{4,10}$/, "Pincode must be 4–10 digits")
+    .optional()
+    .or(z.literal("")),
   business_phone: z
     .string()
     .regex(/^[0-9\s+()-]+$/, { message: "Invalid phone number format" })

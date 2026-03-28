@@ -17,12 +17,8 @@ export const fetchOrgData = async () => {
     if (response.data && response.data.length > 0) {
       const fullOrgResponse = await axios.post(
         "/api/getFullOrg",
-        {
-          id: response.data[0]?.id,
-        },
-        {
-          withCredentials: true,
-        },
+        { id: response.data[0]?.id },
+        { withCredentials: true },
       );
       return transformApiDataToFormValues(fullOrgResponse.data);
     }
@@ -61,6 +57,10 @@ interface ApiOrganizationResponse {
   business_type: string;
   business_address: string;
   business_website: string;
+  business_country: string;
+  business_state: string;
+  business_city: string;
+  business_pincode: string;
   gst: string;
   isActive: boolean;
   updatedAt: string;
@@ -82,6 +82,10 @@ export const transformApiDataToFormValues = (
     business_email: apiData.business_email,
     business_website: apiData.business_website || "",
     business_phone: apiData.business_phone,
+    business_country: apiData.business_country ?? "",
+    business_state: apiData.business_state ?? "",
+    business_city: apiData.business_city ?? "",
+    business_pincode: apiData.business_pincode ?? "",
     gst: apiData.gst || "",
     logo: apiData.logo,
     businessLogo: undefined,

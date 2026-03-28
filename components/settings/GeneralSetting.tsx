@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
@@ -5,6 +6,7 @@ import { useState, useRef, useEffect } from "react";
 import { Controller, useForm, SubmitHandler } from "react-hook-form";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+
 import {
   Card,
   CardContent,
@@ -14,7 +16,6 @@ import {
 } from "@/components/ui/card";
 import { toast } from "sonner";
 import { motion } from "motion/react";
-import { formSchema } from "@/schema/form.Schema";
 import { fetchOrgData } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { IconUpload, IconX } from "@tabler/icons-react";
@@ -41,13 +42,25 @@ const generalSchema = z.object({
 });
 
 type GeneralForm = z.infer<typeof generalSchema>;
-type BusinessProfileValues = z.infer<typeof formSchema>;
+
+const DEFAULT_VALUES: GeneralForm = {
+  logo: "",
+  billName: "",
+  gst: "",
+  address: "",
+  city: "",
+  postal: "",
+  country: "in",
+  currency: "inr",
+  invoicePrefix: "INV-",
+  invoiceNumber: "1001",
+  dueDays: "30",
+};
 
 export default function GeneralSetting() {
-  //
-  const [orgData, setOrgData] = useState<BusinessProfileValues | undefined>();
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -55,21 +68,11 @@ export default function GeneralSetting() {
     handleSubmit: handleGeneral,
     control: controlGeneral,
     reset: resetGeneral,
+    setValue,
     formState: { errors: generalErrors },
   } = useForm<GeneralForm>({
     resolver: zodResolver(generalSchema),
-    defaultValues: {
-      billName: "",
-      gst: "",
-      address: "",
-      city: "",
-      postal: "",
-      country: "in",
-      currency: "inr",
-      invoicePrefix: "INV-",
-      invoiceNumber: "1001",
-      dueDays: "30",
-    },
+    defaultValues: DEFAULT_VALUES,
   });
 
   useEffect(() => {
@@ -77,11 +80,11 @@ export default function GeneralSetting() {
       try {
         const data = await fetchOrgData();
         if (data?.id) {
-          setOrgData(data);
           if (data.logo) {
             setLogoPreview(data.logo);
           }
           resetGeneral({
+            logo: data.logo || "",
             billName: data.name || "",
             gst: data.gst || "",
             address: data.business_address || "",
@@ -89,9 +92,6 @@ export default function GeneralSetting() {
             postal: "",
             country: "in",
             currency: "inr",
-            invoicePrefix: "INV-",
-            invoiceNumber: "1001",
-            dueDays: "30",
           });
         }
       } catch (error) {
@@ -99,19 +99,53 @@ export default function GeneralSetting() {
         toast.error("Failed to load organization data");
       }
     };
+
     loadData();
   }, [resetGeneral]);
 
   const handleLogoFile = (file: File) => {
-    if (!file.type.startsWith("image/")) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload a valid image file");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image must be under 2MB");
+      return;
+    }
     const reader = new FileReader();
-    reader.onload = (e) => setLogoPreview(e.target?.result as string);
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      setLogoPreview(result);
+      setValue("logo", result);
+    };
     reader.readAsDataURL(file);
   };
 
-  const onGeneralSubmit: SubmitHandler<GeneralForm> = (data) => {
-    console.log("General:", data);
-    toast.success("General settings saved!");
+  const handleRemoveLogo = () => {
+    setLogoPreview(null);
+    setValue("logo", "");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleReset = () => {
+    resetGeneral(DEFAULT_VALUES);
+    setLogoPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const onGeneralSubmit: SubmitHandler<GeneralForm> = async (data) => {
+    setIsLoading(true);
+    try {
+      // TODO: Replace with your actual API call, e.g.:
+      // await updateOrgData(data);
+      console.log("General settings submitted:", data);
+      toast.success("General settings saved!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to save settings. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -122,8 +156,10 @@ export default function GeneralSetting() {
     >
       <Card className="border-neutral-200 dark:border-neutral-700">
         <CardHeader>
-          <CardTitle>General Billing Settings</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-neutral-900 dark:text-neutral-50">
+            General Billing Settings
+          </CardTitle>
+          <CardDescription className="text-neutral-500 dark:text-neutral-400">
             Configure basic billing information and preferences
           </CardDescription>
         </CardHeader>
@@ -137,14 +173,19 @@ export default function GeneralSetting() {
 
               {/* Logo Upload */}
               <div className="space-y-2">
-                <Label htmlFor="logo">Company Logo</Label>
+                <Label
+                  htmlFor="logo"
+                  className="text-neutral-700 dark:text-neutral-300"
+                >
+                  Company Logo
+                </Label>
                 <div className="flex items-center gap-4">
                   <div
                     className={cn(
                       "relative h-16 w-16 rounded-lg border-2 border-dashed transition-colors cursor-pointer",
                       isDragging
-                        ? "border-blue-500 bg-blue-50 dark:bg-blue-950"
-                        : "border-neutral-300 dark:border-neutral-600 hover:border-neutral-400",
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-950/40"
+                        : "border-neutral-300 dark:border-neutral-600 hover:border-neutral-400 dark:hover:border-neutral-500 bg-neutral-50 dark:bg-neutral-800/50",
                     )}
                     onClick={() => fileInputRef.current?.click()}
                     onDragOver={(e) => {
@@ -161,7 +202,7 @@ export default function GeneralSetting() {
                   >
                     {logoPreview ? (
                       <>
-                        <img
+                        <Image
                           src={logoPreview}
                           width={128}
                           height={128}
@@ -172,21 +213,21 @@ export default function GeneralSetting() {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setLogoPreview(null);
+                            handleRemoveLogo();
                           }}
-                          className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white shadow hover:bg-red-600"
+                          className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white shadow hover:bg-red-600 transition-colors"
                         >
                           <IconX className="h-3 w-3" />
                         </button>
                       </>
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-neutral-400">
+                      <div className="flex h-full w-full items-center justify-center text-neutral-400 dark:text-neutral-500">
                         <IconUpload className="h-6 w-6" />
                       </div>
                     )}
                   </div>
 
-                  <input
+                  <Input
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
@@ -202,7 +243,7 @@ export default function GeneralSetting() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="hover:text-neutral-700 dark:hover:text-neutral-600"
+                      className="text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-neutral-100 border-neutral-300 dark:border-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-700"
                       onClick={() => fileInputRef.current?.click()}
                     >
                       {logoPreview ? "Change Logo" : "Upload Logo"}
@@ -210,13 +251,13 @@ export default function GeneralSetting() {
                     {logoPreview && (
                       <button
                         type="button"
-                        onClick={() => setLogoPreview(null)}
-                        className="text-xs text-red-500 hover:text-red-600 text-left"
+                        onClick={handleRemoveLogo}
+                        className="text-xs text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 text-left transition-colors"
                       >
                         Remove
                       </button>
                     )}
-                    <p className="text-xs text-neutral-400">
+                    <p className="text-xs text-neutral-400 dark:text-neutral-500">
                       PNG, JPG up to 2MB
                     </p>
                   </div>
@@ -226,68 +267,104 @@ export default function GeneralSetting() {
               {/* Company Fields */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="billName">Company Name</Label>
+                  <Label
+                    htmlFor="billName"
+                    className="text-neutral-700 dark:text-neutral-300"
+                  >
+                    Company Name
+                  </Label>
                   <Input
                     id="billName"
                     placeholder="Enter company name"
+                    className="bg-white dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
                     {...regGeneral("billName")}
                   />
                   {generalErrors.billName && (
-                    <p className="text-xs text-red-500">
+                    <p className="text-xs text-red-500 dark:text-red-400">
                       {generalErrors.billName.message}
                     </p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="gst">Tax ID / GST Number</Label>
+                  <Label
+                    htmlFor="gst"
+                    className="text-neutral-700 dark:text-neutral-300"
+                  >
+                    Tax ID / GST Number
+                  </Label>
                   <Input
                     id="gst"
                     placeholder="Enter tax ID"
+                    className="bg-white dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
                     {...regGeneral("gst")}
                   />
                 </div>
 
                 <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="address">Address</Label>
+                  <Label
+                    htmlFor="address"
+                    className="text-neutral-700 dark:text-neutral-300"
+                  >
+                    Address
+                  </Label>
                   <Input
                     id="address"
                     placeholder="Enter address"
+                    className="bg-white dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
                     {...regGeneral("address")}
                   />
                   {generalErrors.address && (
-                    <p className="text-xs text-red-500">
+                    <p className="text-xs text-red-500 dark:text-red-400">
                       {generalErrors.address.message}
                     </p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="city">City</Label>
-                  <Input id="city" placeholder="City" {...regGeneral("city")} />
+                  <Label
+                    htmlFor="city"
+                    className="text-neutral-700 dark:text-neutral-300"
+                  >
+                    City
+                  </Label>
+                  <Input
+                    id="city"
+                    placeholder="City"
+                    className="bg-white dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
+                    {...regGeneral("city")}
+                  />
                   {generalErrors.city && (
-                    <p className="text-xs text-red-500">
+                    <p className="text-xs text-red-500 dark:text-red-400">
                       {generalErrors.city.message}
                     </p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="postal">Postal Code</Label>
+                  <Label
+                    htmlFor="postal"
+                    className="text-neutral-700 dark:text-neutral-300"
+                  >
+                    Postal Code
+                  </Label>
                   <Input
                     id="postal"
                     placeholder="Postal code"
+                    className="bg-white dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
                     {...regGeneral("postal")}
                   />
                   {generalErrors.postal && (
-                    <p className="text-xs text-red-500">
+                    <p className="text-xs text-red-500 dark:text-red-400">
                       {generalErrors.postal.message}
                     </p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Country</Label>
+                  <Label className="text-neutral-700 dark:text-neutral-300">
+                    Country
+                  </Label>
                   <Controller
                     name="country"
                     control={controlGeneral}
@@ -296,11 +373,16 @@ export default function GeneralSetting() {
                         value={field.value}
                         onValueChange={field.onChange}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-white dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600 text-neutral-900 dark:text-neutral-100">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="in">India</SelectItem>
+                        <SelectContent className="bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700">
+                          <SelectItem
+                            value="in"
+                            className="text-neutral-900 dark:text-neutral-100 focus:bg-neutral-100 dark:focus:bg-neutral-700"
+                          >
+                            India
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     )}
@@ -308,7 +390,9 @@ export default function GeneralSetting() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Default Currency</Label>
+                  <Label className="text-neutral-700 dark:text-neutral-300">
+                    Default Currency
+                  </Label>
                   <Controller
                     name="currency"
                     control={controlGeneral}
@@ -317,12 +401,22 @@ export default function GeneralSetting() {
                         value={field.value}
                         onValueChange={field.onChange}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-white dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600 text-neutral-900 dark:text-neutral-100">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="inr">INR (₹)</SelectItem>
-                          <SelectItem value="usd">USD ($)</SelectItem>
+                        <SelectContent className="bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700">
+                          <SelectItem
+                            value="inr"
+                            className="text-neutral-900 dark:text-neutral-100 focus:bg-neutral-100 dark:focus:bg-neutral-700"
+                          >
+                            INR (₹)
+                          </SelectItem>
+                          <SelectItem
+                            value="usd"
+                            className="text-neutral-900 dark:text-neutral-100 focus:bg-neutral-100 dark:focus:bg-neutral-700"
+                          >
+                            USD ($)
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     )}
@@ -331,68 +425,23 @@ export default function GeneralSetting() {
               </div>
             </div>
 
-            {/* ── Invoice Defaults ── */}
-            <div className="space-y-4 border-t border-neutral-200 pt-6 dark:border-neutral-700">
-              <h3 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
-                Invoice Defaults
-              </h3>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="invoicePrefix">Invoice Number Prefix</Label>
-                  <Input
-                    id="invoicePrefix"
-                    placeholder="e.g., INV-"
-                    {...regGeneral("invoicePrefix")}
-                  />
-                  {generalErrors.invoicePrefix && (
-                    <p className="text-xs text-red-500">
-                      {generalErrors.invoicePrefix.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="invoiceNumber">Next Invoice Number</Label>
-                  <Input
-                    id="invoiceNumber"
-                    type="number"
-                    placeholder="1001"
-                    {...regGeneral("invoiceNumber")}
-                  />
-                  {generalErrors.invoiceNumber && (
-                    <p className="text-xs text-red-500">
-                      {generalErrors.invoiceNumber.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="dueDays">Default Due Days</Label>
-                  <Input
-                    id="dueDays"
-                    type="number"
-                    placeholder="30"
-                    {...regGeneral("dueDays")}
-                  />
-                  {generalErrors.dueDays && (
-                    <p className="text-xs text-red-500">
-                      {generalErrors.dueDays.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* ── Actions ── */}
-            <div className="flex justify-end gap-3 border-t border-neutral-200 pt-6 dark:border-neutral-700">
+            <div className="flex justify-end gap-3 border-t border-neutral-200 dark:border-neutral-700 pt-6">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => resetGeneral()}
+                disabled={isLoading}
+                className="border-neutral-300 dark:border-neutral-600 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-900 dark:hover:text-neutral-100"
+                onClick={handleReset}
               >
                 Reset to Default
               </Button>
-              <Button type="submit">Save Changes</Button>
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 hover:bg-neutral-700 dark:hover:bg-neutral-200"
+              >
+                {isLoading ? "Saving..." : "Save Changes"}
+              </Button>
             </div>
           </form>
         </CardContent>

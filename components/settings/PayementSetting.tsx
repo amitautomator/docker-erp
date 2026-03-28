@@ -29,14 +29,7 @@ import { IconPlus } from "@tabler/icons-react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 
-const defaultPaymentMethods = [
-  "cash",
-  "check",
-  "card",
-  "bank_transfer",
-  "upi",
-  "other",
-];
+const defaultPaymentMethods = ["cash", "card", "bank_transfer", "upi"];
 
 const paymentSchema = z.object({
   methodName: z.string().min(1, "Method name is required"),
